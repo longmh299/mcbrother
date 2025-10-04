@@ -24,7 +24,6 @@ async function createCat(fd: FormData) {
     slug: (String(fd.get("slug") ?? "").trim()) || name,
     order: Number(fd.get("order") ?? 0),
     parentId: fd.get("parentId") ? Number(fd.get("parentId")) : null,
-
     // Banner + SEO
     banner: (fd.get("banner") as string) || null,
     metaTitle: (fd.get("metaTitle") as string) || null,
@@ -58,7 +57,6 @@ async function updateCat(fd: FormData) {
       fd.get("parentId") && String(fd.get("parentId")) !== ""
         ? Number(fd.get("parentId"))
         : null,
-
     banner: (fd.get("banner") as string) || null,
     metaTitle: (fd.get("metaTitle") as string) || null,
     metaDescription: (fd.get("metaDescription") as string) || null,
@@ -104,7 +102,7 @@ export default async function EditNewsCategoryPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { id: idParam } = await params; // ✅ Next 15: params là Promise
+  const { id: idParam } = await params; // Next 15: params là Promise
   const idNum = Number(idParam);
   const isNew = !idParam || Number.isNaN(idNum) || idParam === "new";
 
@@ -127,6 +125,14 @@ export default async function EditNewsCategoryPage({
         </Link>
       </div>
     );
+  }
+
+  // ✅ ConfirmDelete dùng onConfirm
+  async function onDelete() {
+    "use server";
+    const fd = new FormData();
+    fd.set("id", String(cat!.id));
+    await deleteCatAction(fd);
   }
 
   return (
@@ -208,30 +214,16 @@ export default async function EditNewsCategoryPage({
             placeholder="Canonical URL"
             className="border rounded px-3 py-2 w-full"
           />
-          <ImageField
-            name="ogImage"
-            label="OG Image"
-            defaultValue={cat?.ogImage ?? ""}
-          />
+          <ImageField name="ogImage" label="OG Image" defaultValue={cat?.ogImage ?? ""} />
           <div className="flex gap-6">
             <span className="flex items-center gap-2">
               <input type="hidden" name="noindex" value="0" />
-              <input
-                type="checkbox"
-                name="noindex"
-                value="1"
-                defaultChecked={!!cat?.noindex}
-              />
+              <input type="checkbox" name="noindex" value="1" defaultChecked={!!cat?.noindex} />
               <span>noindex</span>
             </span>
             <span className="flex items-center gap-2">
               <input type="hidden" name="nofollow" value="0" />
-              <input
-                type="checkbox"
-                name="nofollow"
-                value="1"
-                defaultChecked={!!cat?.nofollow}
-              />
+              <input type="checkbox" name="nofollow" value="1" defaultChecked={!!cat?.nofollow} />
               <span>nofollow</span>
             </span>
           </div>
@@ -242,12 +234,11 @@ export default async function EditNewsCategoryPage({
         </div>
       </form>
 
-      {/* Xoá: ĐỂ NGOÀI form để tránh lồng <form> */}
+      {/* Xoá: để ngoài form để tránh lồng <form> */}
       {!isNew && (
-        <div className="">
+        <div>
           <ConfirmDelete
-            action={deleteCatAction}
-            fields={{ id: cat!.id }}
+            onConfirm={onDelete}
             label="Xoá chuyên mục"
             confirmText={`Xoá chuyên mục "${cat!.name}"?`}
           />
