@@ -1,3 +1,4 @@
+// app/admin/news-categories/[id]/page.tsx
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { revalidatePath } from "next/cache";
@@ -101,9 +102,9 @@ async function deleteCatAction(fd: FormData) {
 export default async function EditNewsCategoryPage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
-  const idParam = params.id;
+  const { id: idParam } = await params; // ✅ Next 15: params là Promise
   const idNum = Number(idParam);
   const isNew = !idParam || Number.isNaN(idNum) || idParam === "new";
 

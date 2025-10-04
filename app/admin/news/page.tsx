@@ -8,10 +8,10 @@ export const dynamic = 'force-dynamic';
 export default async function NewsAdminList({
   searchParams,
 }: {
-  searchParams: any;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  // ép kiểu nhẹ để dùng an toàn
-  const sp = searchParams as Record<string, string | string[] | undefined>;
+  // ✅ Next 15: searchParams là Promise
+  const sp = await searchParams;
 
   const params = {
     q: sp.q ? String(sp.q) : undefined,
@@ -55,7 +55,6 @@ export default async function NewsAdminList({
   const pages = Math.max(1, Math.ceil(total / take));
 
   const buildQS = (n: number) => {
-    // <-- KHÔNG truyền nguyên sp vào URLSearchParams (tránh Symbol)
     const qs = new URLSearchParams();
     if (params.q) qs.set('q', params.q);
     if (params.published) qs.set('published', params.published);

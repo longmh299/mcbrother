@@ -3,11 +3,13 @@ import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import CategoryPicker from "@/components/CategoryPicker";
 
+export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 type SearchParams = {
   q?: string;
-  categoryId?: string;
+  categoryId?: string; // id
+  cat?: string;        // slug (tuỳ chọn)
   page?: string;
 };
 
@@ -22,7 +24,7 @@ function fmtVND(n?: number | null) {
   }
 }
 
-// 👉 Dùng để tìm kiếm không dấu (match với slug)
+// slugify không dấu (để match tên/slug)
 function slugify(s: string) {
   return s
     .toLowerCase()
@@ -35,10 +37,22 @@ function slugify(s: string) {
 async function getData(params: SearchParams) {
   const q = (params.q || "").trim();
   const qSlug = q ? slugify(q) : "";
-  // parse categoryId an toàn (tránh NaN/rác)
-  const rawCat = (params.categoryId ?? "").trim();
-  const categoryId = /^\d+$/.test(rawCat) ? Number(rawCat) : undefined;
+  const rawCatId = (params.categoryId ?? "").trim();
+  const catSlug = (params.cat ?? "").trim();
   const page = Math.max(1, Number(params.page) || 1);
+
+  // Ưu tiên categoryId; nếu không có mà có cat (slug) -> tra id
+  let categoryId: number | undefined = /^\d+$/.test(rawCatId)
+    ? Number(rawCatId)
+    : undefined;
+
+  if (!categoryId && catSlug) {
+    const cat = await prisma.category.findUnique({
+      where: { slug: catSlug },
+      select: { id: true },
+    });
+    categoryId = cat?.id;
+  }
 
   const where: any = { published: true };
   if (q) {
@@ -46,13 +60,11 @@ async function getData(params: SearchParams) {
       { name: { contains: q, mode: "insensitive" } },
       { short: { contains: q, mode: "insensitive" } },
       { sku: { contains: q, mode: "insensitive" } },
-      // ⚡ tìm theo slug không dấu
-      ...(qSlug ? [{ slug: { contains: qSlug } }] : []),
+      // Tìm theo slug (không dấu) + insensitive
+      ...(qSlug ? [{ slug: { contains: qSlug, mode: "insensitive" } }] : []),
     ];
   }
-  if (categoryId) {
-    where.categoryId = categoryId;
-  }
+  if (categoryId) where.categoryId = categoryId;
 
   const [count, items, categories] = await Promise.all([
     prisma.product.count({ where }),
@@ -78,7 +90,9 @@ async function getData(params: SearchParams) {
 
   return {
     q,
+    // giữ lại cả hai để build URL phân trang đúng ngữ cảnh
     categoryId,
+    cat: catSlug || undefined,
     page,
     totalPages: Math.max(1, Math.ceil(count / PER_PAGE)),
     items,
@@ -105,9 +119,11 @@ export default async function ProductsPage({
   searchParams: Promise<SearchParams>;
 }) {
   // ✅ phải await trước khi dùng
-  const params = await searchParamsPromise;
+  const sp = await searchParamsPromise;
+  const { q, categoryId, cat, page, totalPages, items, categories } = await getData(sp);
 
-  const { q, categoryId, page, totalPages, items, categories } = await getData(params);
+  // Helper để giữ đúng param đang dùng: ưu tiên cat (slug), fallback categoryId (id)
+  const catParam = cat ? { cat } : { categoryId };
 
   return (
     <main className="max-w-7xl mx-auto px-4 lg:px-6 py-6 md:py-8">
@@ -193,7 +209,7 @@ export default async function ProductsPage({
             aria-label="Trang trước"
             href={buildHref("/san-pham", {
               q,
-              categoryId,
+              ...catParam,
               page: Math.max(1, page - 1),
             })}
             className={`px-3 py-2 rounded-md border text-sm ${
@@ -219,7 +235,7 @@ export default async function ProductsPage({
                 return (
                   <Link
                     key={p}
-                    href={buildHref("/san-pham", { q, categoryId, page: p })}
+                    href={buildHref("/san-pham", { q, ...catParam, page: p })}
                     className={`min-w-[36px] text-center px-2.5 py-2 rounded-md border text-sm ${
                       p === page
                         ? "bg-[#2653ed] border-[#2653ed] text-white"
@@ -249,7 +265,7 @@ export default async function ProductsPage({
             aria-label="Trang sau"
             href={buildHref("/san-pham", {
               q,
-              categoryId,
+              ...catParam,
               page: Math.min(totalPages, page + 1),
             })}
             className={`px-3 py-2 rounded-md border text-sm ${

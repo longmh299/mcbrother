@@ -1,3 +1,4 @@
+// app/admin/categories/[id]/page.tsx
 import { prisma } from '@/lib/prisma';
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
@@ -5,13 +6,18 @@ import { updateCategory, deleteCategory } from '../actions';
 
 export const dynamic = 'force-dynamic';
 
-export default async function EditCategoryPage({ params }: { params: { id: string } }) {
-  const id = Number(params.id);
-  if (!id || Number.isNaN(id)) notFound();
+export default async function EditCategoryPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;            // ✅ Next 15: params là Promise
+  const catId = Number(id);
+  if (!catId || Number.isNaN(catId)) notFound();
 
   const [category, parents] = await Promise.all([
     prisma.category.findUnique({
-      where: { id },
+      where: { id: catId },
       select: {
         id: true, name: true, slug: true, order: true, parentId: true,
         banner: true, metaTitle: true, metaDescription: true,
@@ -19,7 +25,7 @@ export default async function EditCategoryPage({ params }: { params: { id: strin
       },
     }),
     prisma.category.findMany({
-      where: { id: { not: id } },
+      where: { id: { not: catId } },       // ✅ dùng catId
       orderBy: [{ order: 'asc' }, { name: 'asc' }],
       select: { id: true, name: true },
     }),
@@ -103,8 +109,6 @@ export default async function EditCategoryPage({ params }: { params: { id: strin
           <button type="submit" className="rounded-lg bg-black px-5 py-2 text-white">
             Lưu
           </button>
-
-          {/* Nút xoá dùng formAction -> KHÔNG có form lồng nhau */}
           <button
             type="submit"
             formAction={deleteCategory}

@@ -1,37 +1,68 @@
 // app/api/resolve/route.ts
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
-// GET /api/resolve?entity=product|post|category|postCategory&slug=...
-export async function GET(req: Request) {
+export const runtime = 'nodejs';
+
+// Các entity hợp lệ
+const ENTITIES = ['product', 'post', 'category', 'postCategory'] as const;
+type Entity = typeof ENTITIES[number];
+
+export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
-    const entity = String(searchParams.get('entity') || '');
-    const slug = String(searchParams.get('slug') || '');
+    const entityRaw = String(searchParams.get('entity') || '').trim();
+    const slugRaw = String(searchParams.get('slug') || '').trim();
 
-    if (!entity || !slug) {
+    // Validate input
+    if (!entityRaw || !slugRaw) {
       return NextResponse.json({ ok: false, error: 'Missing entity/slug' }, { status: 400 });
     }
+    if (!ENTITIES.includes(entityRaw as Entity)) {
+      return NextResponse.json({ ok: false, error: 'Invalid entity' }, { status: 400 });
+    }
+    const entity = entityRaw as Entity;
+    const slug = decodeURIComponent(slugRaw);
 
-    const map = {
+    // Map model theo entity
+    const modelMap: Record<Entity, any> = {
       product: prisma.product,
       post: prisma.post,
       category: prisma.category,
       postCategory: prisma.postCategory,
-    } as const;
-    const model = (map as any)[entity];
-    if (!model) return NextResponse.json({ ok: false, error: 'Invalid entity' }, { status: 400 });
+    };
 
-    const exists = await model.findFirst({ where: { slug }, select: { slug: true } });
-    if (exists) return NextResponse.json({ ok: true, entity, slug });
+    // Tìm theo slug (case-insensitive cho chắc)
+    const exists = await modelMap[entity].findFirst({
+      where: { slug: { equals: slug, mode: 'insensitive' } },
+      select: { slug: true },
+    });
 
-    const red = await prisma.slugRedirect.findUnique({ where: { fromSlug: slug } });
-    if (red && red.entityType === entity) {
-      return NextResponse.json({ ok: true, entity, slug: red.toSlug, redirected: true });
+    if (exists) {
+      const res = NextResponse.json({ ok: true, entity, slug: exists.slug });
+      res.headers.set('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300');
+      return res;
+    }
+
+    // Không thấy → thử bảng redirect (nếu có)
+    try {
+      const red = await prisma.slugRedirect.findUnique({
+        where: { fromSlug: slug },
+      });
+      if (red && red.entityType === entity && red.toSlug) {
+        const res = NextResponse.json({ ok: true, entity, slug: red.toSlug, redirected: true });
+        res.headers.set('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300');
+        return res;
+      }
+    } catch {
+      // nếu không có bảng slugRedirect thì bỏ qua
     }
 
     return NextResponse.json({ ok: false, notFound: true }, { status: 404 });
   } catch (e: any) {
-    return NextResponse.json({ ok: false, error: e?.message || 'Error' }, { status: 500 });
+    return NextResponse.json(
+      { ok: false, error: e?.message || 'Internal error' },
+      { status: 500 },
+    );
   }
 }

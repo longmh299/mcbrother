@@ -4,10 +4,6 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import TickerBar from "@/components/TickerBar";
 
- 
-
-
-
 export const dynamic = "force-dynamic";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://mcbrother.net";

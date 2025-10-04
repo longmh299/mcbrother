@@ -1,5 +1,5 @@
 // app/api/admin/news/[id]/route.ts
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
@@ -13,7 +13,9 @@ const slugify = (input: string) =>
     .slice(0, 96);
 
 const toBoolUndef = (v: unknown) =>
-  v === undefined ? undefined : (typeof v === "boolean" ? v : String(v).trim() === "true" || v === 1 || v === "1");
+  v === undefined ? undefined : (typeof v === "boolean"
+    ? v
+    : String(v).trim() === "true" || v === 1 || v === "1");
 
 const toTagsUndef = (v: unknown) => {
   if (v === undefined) return undefined;
@@ -22,63 +24,76 @@ const toTagsUndef = (v: unknown) => {
   return [];
 };
 
-export async function PUT(req: Request, { params }: { params: { id: string } }) {
+export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
   try {
     const id = Number(params.id);
-    if (Number.isNaN(id)) return NextResponse.json({ ok: false, message: "Invalid id" }, { status: 400 });
+    if (!Number.isFinite(id)) {
+      return NextResponse.json({ ok: false, message: "Invalid id" }, { status: 400 });
+    }
 
     const old = await prisma.post.findUnique({ where: { id }, select: { slug: true } });
     if (!old) return NextResponse.json({ ok: false, message: "Not found" }, { status: 404 });
 
-    const body = await req.json().catch(() => ({}));
+    const body = await req.json().catch(() => ({} as any));
 
-    const updated = await prisma.post.update({
-      where: { id },
-      data: {
-        title: body.title ?? undefined,
-        slug: body.slug ? slugify(String(body.slug)) : undefined,
-        excerpt: body.excerpt ?? undefined,
-        content: body.content ?? undefined,
-        coverImage: body.coverImage ?? undefined,
-        tags: toTagsUndef(body.tags),
-        published: toBoolUndef(body.published),
-        categoryId: body.categoryId ?? undefined,
+    const data = {
+      title: body.title ?? undefined,
+      slug: body.slug ? slugify(String(body.slug)) : undefined,
+      excerpt: body.excerpt ?? undefined,
+      content: body.content ?? undefined,
+      coverImage: body.coverImage ?? undefined,
+      tags: toTagsUndef(body.tags),
+      published: toBoolUndef(body.published),
+      // coerce categoryId
+      categoryId:
+        body.categoryId === null || body.categoryId === ""
+          ? null
+          : body.categoryId !== undefined
+            ? Number(body.categoryId)
+            : undefined,
 
-        metaTitle: body.metaTitle ?? undefined,
-        metaDescription: body.metaDescription ?? undefined,
-        canonicalUrl: body.canonicalUrl ?? undefined,
-        ogImage: body.ogImage ?? undefined,
-        noindex: toBoolUndef(body.noindex),
-        nofollow: toBoolUndef(body.nofollow),
-      },
-      select: { id: true, slug: true },
+      metaTitle: body.metaTitle ?? undefined,
+      metaDescription: body.metaDescription ?? undefined,
+      canonicalUrl: body.canonicalUrl ?? undefined,
+      ogImage: body.ogImage ?? undefined,
+      noindex: toBoolUndef(body.noindex),
+      nofollow: toBoolUndef(body.nofollow),
+    } as const;
+
+    const result = await prisma.$transaction(async (tx) => {
+      const updated = await tx.post.update({
+        where: { id },
+        data,
+        select: { id: true, slug: true },
+      });
+
+      if (old.slug !== updated.slug) {
+        await tx.slugRedirect.create({
+          data: { entityType: "post", fromSlug: old.slug, toSlug: updated.slug },
+        }).catch(() => {}); // bảng/unique có thể không tồn tại -> bỏ qua
+      }
+      return updated;
     });
 
-    // nếu slug đổi → lưu redirect (nếu bạn có bảng này)
-    if (old.slug !== updated.slug) {
-      try {
-        await prisma.slugRedirect.create({
-          data: { entityType: "post", fromSlug: old.slug, toSlug: updated.slug },
-        });
-      } catch {
-        // bảng không tồn tại hoặc unique trùng → bỏ qua
-      }
-    }
-
-    return NextResponse.json({ ok: true, post: updated });
+    const res = NextResponse.json({ ok: true, post: result });
+    res.headers.set("Cache-Control", "no-store");
+    return res;
   } catch (e) {
     console.error("PUT /api/admin/news/:id error", e);
     return NextResponse.json({ ok: false, message: "Internal error" }, { status: 500 });
   }
 }
 
-export async function DELETE(_req: Request, { params }: { params: { id: string } }) {
+export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
   try {
     const id = Number(params.id);
-    if (Number.isNaN(id)) return NextResponse.json({ ok: false, message: "Invalid id" }, { status: 400 });
-
+    if (!Number.isFinite(id)) {
+      return NextResponse.json({ ok: false, message: "Invalid id" }, { status: 400 });
+    }
     await prisma.post.delete({ where: { id } });
-    return NextResponse.json({ ok: true });
+    const res = NextResponse.json({ ok: true });
+    res.headers.set("Cache-Control", "no-store");
+    return res;
   } catch (e) {
     console.error("DELETE /api/admin/news/:id error", e);
     return NextResponse.json({ ok: false, message: "Internal error" }, { status: 500 });

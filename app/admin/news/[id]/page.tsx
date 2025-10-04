@@ -9,9 +9,14 @@ import SeoPreview from '@/components/SeoPreview';
 
 export const dynamic = 'force-dynamic';
 
-export default async function EditPostPage({ params }: { params: { id: string } }) {
-  // Post.id = Int -> luôn convert
-  const idForPrisma = Number(params.id);
+export default async function EditPostPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  // ✅ Next 15: params là Promise
+  const { id } = await params;
+  const idForPrisma = Number(id);
   if (Number.isNaN(idForPrisma)) {
     return <div>ID không hợp lệ</div>;
   }

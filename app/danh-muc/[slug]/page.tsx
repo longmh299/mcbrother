@@ -5,16 +5,23 @@ import { abs } from "@/lib/site";
 import { redirect, notFound } from "next/navigation";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 export async function generateMetadata(
-  { params }: { params: { slug: string } }
+  { params }: { params: Promise<{ slug: string }> }
 ): Promise<Metadata> {
-  const c = await prisma.category.findUnique({ where: { slug: params.slug } });
+  const { slug } = await params; // ✅ Next 15: params là Promise
+
+  const c = await prisma.category.findUnique({ where: { slug } });
 
   if (!c) {
-    const r = await prisma.slugRedirect.findUnique({ where: { fromSlug: params.slug } });
+    const r = await prisma.slugRedirect.findUnique({ where: { fromSlug: slug } });
     if (r?.entityType === "category") {
-      return { title: "Redirecting…", robots: { index: false, follow: false }, other: { refresh: `0;url=/danh-muc/${r.toSlug}` } };
+      return {
+        title: "Redirecting…",
+        robots: { index: false, follow: false },
+        other: { refresh: `0;url=/danh-muc/${r.toSlug}` },
+      };
     }
     return {};
   }
@@ -34,10 +41,14 @@ export async function generateMetadata(
   };
 }
 
-export default async function CategoryPage({ params }: { params: { slug: string } }) {
-  const c = await prisma.category.findUnique({ where: { slug: params.slug } });
+export default async function CategoryPage(
+  { params }: { params: Promise<{ slug: string }> }
+) {
+  const { slug } = await params; // ✅ Next 15: params là Promise
+
+  const c = await prisma.category.findUnique({ where: { slug } });
   if (!c) {
-    const r = await prisma.slugRedirect.findUnique({ where: { fromSlug: params.slug } });
+    const r = await prisma.slugRedirect.findUnique({ where: { fromSlug: slug } });
     if (r?.entityType === "category") redirect(`/danh-muc/${r.toSlug}`);
     notFound();
   }
@@ -63,7 +74,10 @@ export default async function CategoryPage({ params }: { params: { slug: string 
 
   return (
     <main className="mx-auto max-w-6xl p-4">
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(ld) }} />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(ld) }}
+      />
       <h1 className="text-2xl font-semibold">{c.name}</h1>
       {/* TODO: render list sản phẩm theo UI của bạn */}
     </main>

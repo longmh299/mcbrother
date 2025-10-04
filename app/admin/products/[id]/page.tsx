@@ -5,6 +5,7 @@ import { updateProduct } from '../actions';
 import Link from 'next/link';
 import RichEditor from '@/components/RichEditor';
 
+export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 type Params = { id: string };
@@ -122,7 +123,7 @@ export default async function EditProductPage({
                   name="price"
                   type="number"
                   step="1"
-                  defaultValue={product.price ?? undefined}
+                  defaultValue={product.price ?? ''}
                   className="mt-1 w-full rounded-lg border px-3 py-2"
                 />
               </div>
@@ -323,7 +324,7 @@ export default async function EditProductPage({
                     defaultChecked={!!product.noindex}
                     className="h-4 w-4"
                   />
-                  <span>Noindex</span>
+                    <span>Noindex</span>
                 </label>
                 <label className="inline-flex items-center gap-2">
                   <input

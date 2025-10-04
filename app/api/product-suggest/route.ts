@@ -1,24 +1,37 @@
 // app/api/product-suggest/route.ts
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
-export async function GET(req: Request) {
+export const runtime = 'nodejs';
+
+export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const q = String(searchParams.get('q') || '').trim();
-    const categoryId = searchParams.get('categoryId') || undefined;
+    const categoryIdRaw = searchParams.get('categoryId');
 
-    if (!q || q.length < 2) return NextResponse.json({ items: [] });
+    if (!q || q.length < 2) {
+      const res = NextResponse.json({ items: [] });
+      res.headers.set('Cache-Control', 'public, s-maxage=30, stale-while-revalidate=120');
+      return res;
+    }
+
+    const categoryId =
+      categoryIdRaw === null || categoryIdRaw === ''
+        ? undefined
+        : Number(categoryIdRaw);
 
     const where: any = {
       published: true,
       OR: [
         { name: { contains: q, mode: 'insensitive' } },
         { slug: { contains: q, mode: 'insensitive' } },
-        { sku: { contains: q, mode: 'insensitive' } },
+        { sku:  { contains: q, mode: 'insensitive' } },
       ],
     };
-    if (categoryId) where.categoryId = Number(categoryId);
+    if (categoryId !== undefined && Number.isFinite(categoryId)) {
+      where.categoryId = categoryId;
+    }
 
     const items = await prisma.product.findMany({
       where,
@@ -27,8 +40,10 @@ export async function GET(req: Request) {
       select: { name: true, slug: true },
     });
 
-    return NextResponse.json({ items });
+    const res = NextResponse.json({ items });
+    res.headers.set('Cache-Control', 'public, s-maxage=30, stale-while-revalidate=120');
+    return res;
   } catch (e: any) {
-    return NextResponse.json({ items: [], error: e?.message }, { status: 200 });
+    return NextResponse.json({ items: [], error: e?.message ?? 'Internal error' }, { status: 500 });
   }
 }

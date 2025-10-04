@@ -1,0 +1,62 @@
+// app/admin/products/[id]/images/route.ts
+import { NextRequest, NextResponse } from "next/server";
+import { v2 as cloudinary } from "cloudinary";
+import { prisma } from "@/lib/prisma";
+
+export const runtime = "nodejs";
+
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME!,
+  api_key: process.env.CLOUDINARY_API_KEY!,
+  api_secret: process.env.CLOUDINARY_API_SECRET!,
+  secure: true,
+});
+
+export async function POST(
+  req: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const productId = Number(params.id);
+    if (!Number.isFinite(productId)) {
+      return NextResponse.json({ error: "Invalid product id" }, { status: 400 });
+    }
+
+    // (tuỳ chọn) kiểm tra sản phẩm có tồn tại
+    const exists = await prisma.product.findUnique({ where: { id: productId }, select: { id: true } });
+    if (!exists) return NextResponse.json({ error: "Product not found" }, { status: 404 });
+
+    const form = await req.formData();
+    const file = form.get("file") as File | null;
+    const alt = (form.get("alt") as string) || null;
+    const sort = form.get("sort") ? Number(form.get("sort")) : 0;
+    if (!file) return NextResponse.json({ error: "No file" }, { status: 400 });
+
+    const arrayBuffer = await file.arrayBuffer();
+    const buffer = Buffer.from(new Uint8Array(arrayBuffer));
+
+    const uploaded: any = await new Promise((resolve, reject) => {
+      const stream = cloudinary.uploader.upload_stream(
+        { folder: process.env.CLOUDINARY_FOLDER || "mcbrother" },
+        (err, res) => (err ? reject(err) : resolve(res))
+      );
+      stream.end(buffer);
+    });
+
+    const img = await prisma.productImage.create({
+      data: {
+        url: uploaded.secure_url as string,
+        alt: alt || uploaded.original_filename,
+        sort,
+        productId,
+      },
+    });
+
+    // (tuỳ chọn) no-store để tránh cache
+    const res = NextResponse.json({ ok: true, image: img });
+    res.headers.set("Cache-Control", "no-store");
+    return res;
+  } catch (e: any) {
+    return NextResponse.json({ error: e?.message ?? "Upload failed" }, { status: 500 });
+  }
+}
