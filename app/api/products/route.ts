@@ -1,5 +1,5 @@
-// app/api/products/route.ts (ví dụ)
-import { NextRequest, NextResponse } from "next/server";
+// app/api/products/route.ts
+import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
@@ -17,9 +17,9 @@ const sortMap = (s: string) => {
   }
 };
 
-export async function GET(req: NextRequest) {
+export async function GET(req: Request) {
   try {
-    const sp = req.nextUrl.searchParams;
+    const sp = new URL(req.url).searchParams;
 
     const q = (sp.get("q") || "").trim();
     const cat = (sp.get("cat") || "").trim();
@@ -32,15 +32,15 @@ export async function GET(req: NextRequest) {
 
     if (cat) {
       // nếu category là relation có slug:string
-      where.AND.push({ category: { is: { slug: cat } } });
+      where.AND.push({ category: { is: { slug: { equals: cat } } } });
     }
 
     if (q) {
       where.AND.push({
         OR: [
-          { name: { contains: q, mode: "insensitive" } },
+          { name:  { contains: q, mode: "insensitive" } },
           { short: { contains: q, mode: "insensitive" } },
-          { sku: { contains: q, mode: "insensitive" } },
+          { sku:   { contains: q, mode: "insensitive" } },
           { category: { is: { name: { contains: q, mode: "insensitive" } } } },
         ],
       });
@@ -55,13 +55,13 @@ export async function GET(req: NextRequest) {
         take: size,
         include: {
           category: { select: { name: true, slug: true } },
-          images: { orderBy: { sort: "asc" }, take: 1, select: { url: true, alt: true } },
+          images:   { orderBy: { sort: "asc" }, take: 1, select: { url: true, alt: true } },
         },
       }),
     ]);
 
     const res = NextResponse.json({ page, size, total, items });
-    // cache nhẹ trên CDN (tùy bạn điều chỉnh)
+    // cache nhẹ trên CDN
     res.headers.set("Cache-Control", "public, s-maxage=30, stale-while-revalidate=120");
     return res;
   } catch (e: any) {

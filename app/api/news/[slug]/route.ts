@@ -4,9 +4,11 @@ import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
 
-export async function GET(req: Request, { params }: { params: { slug: string } }) {
+export async function GET(req: Request, context: any) {
+  const slug = String(context?.params?.slug || "");
+
   const p = await prisma.post.findUnique({
-    where: { slug: params.slug },
+    where: { slug },
     include: { category: true },
   });
 
@@ -14,7 +16,7 @@ export async function GET(req: Request, { params }: { params: { slug: string } }
   if (!p || !p.published || p.noindex) {
     try {
       const r = await prisma.slugRedirect.findUnique({
-        where: { fromSlug: params.slug },
+        where: { fromSlug: slug },
       });
       if (r?.entityType === "post" && r.toSlug) {
         return NextResponse.redirect(new URL(`/tin-tuc/${r.toSlug}`, req.url), 308);
@@ -35,7 +37,9 @@ export async function GET(req: Request, { params }: { params: { slug: string } }
     tags: p.tags,
     createdAt: p.createdAt,
     updatedAt: p.updatedAt,
-    category: p.category ? { id: p.category.id, slug: p.category.slug, name: p.category.name } : null,
+    category: p.category
+      ? { id: p.category.id, slug: p.category.slug, name: p.category.name }
+      : null,
     seo: {
       metaTitle: p.metaTitle,
       metaDescription: p.metaDescription,

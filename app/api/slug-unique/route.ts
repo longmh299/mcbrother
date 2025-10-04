@@ -1,12 +1,12 @@
 // app/api/slug-unique/route.ts
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
 export const runtime = 'nodejs';
 
 type Entity = 'product' | 'post' | 'category' | 'postCategory';
 
-export async function GET(req: NextRequest) {
+export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
     const slugRaw = searchParams.get('slug') ?? '';
@@ -31,16 +31,15 @@ export async function GET(req: NextRequest) {
 
     // Ép excludeId về number nếu hợp lệ
     const excludeIdNum =
-      excludeIdRaw === null || excludeIdRaw === ''
-        ? undefined
-        : Number(excludeIdRaw);
+      excludeIdRaw === null || excludeIdRaw === '' ? undefined : Number(excludeIdRaw);
 
     const existed = await model.findFirst({
       where: {
         slug: { equals: slug, mode: 'insensitive' }, // tránh trùng khác hoa/thường
-        NOT: excludeIdNum !== undefined && Number.isFinite(excludeIdNum)
-          ? { id: excludeIdNum }
-          : undefined,
+        NOT:
+          excludeIdNum !== undefined && Number.isFinite(excludeIdNum)
+            ? { id: excludeIdNum }
+            : undefined,
       },
       select: { id: true },
     });

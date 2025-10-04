@@ -1,5 +1,5 @@
 // app/api/resolve/route.ts
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
 export const runtime = 'nodejs';
@@ -8,7 +8,7 @@ export const runtime = 'nodejs';
 const ENTITIES = ['product', 'post', 'category', 'postCategory'] as const;
 type Entity = typeof ENTITIES[number];
 
-export async function GET(req: NextRequest) {
+export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
     const entityRaw = String(searchParams.get('entity') || '').trim();
