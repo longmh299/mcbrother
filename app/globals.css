@@ -1,0 +1,28 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,body{@apply bg-slate-50 text-slate-900}
+
+.blog-content table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1rem 0;
+}
+.blog-content th,
+.blog-content td {
+  border: 1px solid #e5e7eb; /* gray-200 */
+  padding: 8px;
+  text-align: left;
+  vertical-align: top;
+}
+.blog-content th {
+  background: #f9fafb; /* gray-50 */
+  font-weight: 600;
+}
+.table-wrap {
+  width: 100%;
+  overflow-x: auto;           /* cuộn ngang trên mobile */
+  -webkit-overflow-scrolling: touch;
+}
+.blog-content p { margin: .5rem 0; }
