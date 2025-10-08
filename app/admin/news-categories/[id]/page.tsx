@@ -127,14 +127,6 @@ export default async function EditNewsCategoryPage({
     );
   }
 
-  // ✅ ConfirmDelete dùng onConfirm
-  async function onDelete() {
-    "use server";
-    const fd = new FormData();
-    fd.set("id", String(cat!.id));
-    await deleteCatAction(fd);
-  }
-
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -238,7 +230,8 @@ export default async function EditNewsCategoryPage({
       {!isNew && (
         <div>
           <ConfirmDelete
-            onConfirm={onDelete}
+            action={deleteCatAction}
+            hidden={{ id: cat!.id }}
             label="Xoá chuyên mục"
             confirmText={`Xoá chuyên mục "${cat!.name}"?`}
           />

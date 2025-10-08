@@ -27,6 +27,7 @@
     "@tiptap/react": "^3.4.1",
     "@tiptap/starter-kit": "^3.4.1",
     "cloudinary": "^2.7.0",
+    "clsx": "^2.1.1",
     "dom": "^0.0.3",
     "isomorphic-dompurify": "^2.26.0",
     "lowlight": "^3.3.0",
@@ -42,6 +43,8 @@
     "tinymce": "^8.0.2"
   },
   "devDependencies": {
+    "@tailwindcss/aspect-ratio": "^0.4.2",
+    "@tailwindcss/line-clamp": "^0.4.4",
     "@types/node": "^20.11.30",
     "@types/react": "^18.3.24",
     "@types/react-dom": "^18.3.7",

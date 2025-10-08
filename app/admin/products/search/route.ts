@@ -1,6 +1,7 @@
 // app/admin/products/search/route.ts
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 
 export const runtime = "nodejs";
 
@@ -11,18 +12,20 @@ export async function GET(req: Request) {
     const limitRaw = parseInt(searchParams.get("limit") || "10", 10);
     const limit = Math.max(1, Math.min(limitRaw, 50));
 
-    const where = q
+    const insensitive: Prisma.QueryMode = Prisma.QueryMode.insensitive;
+
+    const where: Prisma.ProductWhereInput = q
       ? {
           OR: [
-            { name: { contains: q, mode: "insensitive" } },
-            { slug: { contains: q, mode: "insensitive" } },
-            { sku: { contains: q, mode: "insensitive" } },
+            { name: { contains: q, mode: insensitive } },
+            { slug: { contains: q, mode: insensitive } },
+            { sku: { contains: q, mode: insensitive } },
             {
               attributes: {
                 some: {
                   OR: [
-                    { name: { contains: q, mode: "insensitive" } },
-                    { value: { contains: q, mode: "insensitive" } },
+                    { name: { contains: q, mode: insensitive } },
+                    { value: { contains: q, mode: insensitive } },
                   ],
                 },
               },

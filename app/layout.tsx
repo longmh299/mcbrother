@@ -7,6 +7,7 @@ import Footer from "@/components/Footer";
 import CTA from "@/components/CTA";
 import ChatWidgets from "@/components/ChatWidgets.client";
 import MessengerBtn from "@/components/MessengerBtn";
+import HeaderShell from "@/components/HeaderShell";
 
 export const metadata: Metadata = {
   title: "MCBROTHER JSC",
@@ -17,8 +18,9 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="vi">
-      <body className="bg-white text-gray-900 antialiased">
-        <Header />
+     <body className="min-h-screen bg-surface text-gray-900 antialiased selection:bg-primary/10 selection:text-primary">
+        <HeaderShell />
+
         {children}       
         <Footer />
         <CTA />

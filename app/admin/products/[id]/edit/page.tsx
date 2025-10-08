@@ -31,12 +31,24 @@ export default async function EditProduct({
     select: { slug: true, name: true },
   });
 
-  const imageUrls = p.images.sort((a, b) => a.sort - b.sort).map(i => i.url).join("\n");
-  const attrs = p.attributes.sort((a, b) => a.sort - b.sort).map(a => `${a.name}: ${a.value}`).join("\n");
+  const imageUrls = p.images
+    .sort((a, b) => a.sort - b.sort)
+    .map((i) => i.url)
+    .join("\n");
+  const attrs = p.attributes
+    .sort((a, b) => a.sort - b.sort)
+    .map((a) => `${a.name}: ${a.value}`)
+    .join("\n");
 
-  // Server actions
-  async function action(formData: FormData) { "use server"; return updateProduct(id, formData); }
-  async function del() { "use server"; await deleteProduct(id); }
+  /* ---------------- Server actions (bind id) ---------------- */
+  // Nếu updateProduct kỳ vọng (fd: FormData) => Promise<void>
+  // và id được bind sẵn, ta ép kiểu về đúng chữ ký của form action:
+  const action = (updateProduct as any).bind(null, id) as (
+    fd: FormData
+  ) => Promise<void>;
+
+  // Nút Xoá dùng formAction => action không nhận tham số (ok)
+  const del = (deleteProduct as any).bind(null, id) as () => Promise<void>;
 
   return (
     <div className="rounded-2xl bg-white p-6 shadow-sm">
@@ -47,12 +59,20 @@ export default async function EditProduct({
         <div className="space-y-3">
           <div>
             <label className="block text-sm mb-1">Tên *</label>
-            <input name="name" defaultValue={p.name} className="w-full rounded-lg border px-3 py-2" />
+            <input
+              name="name"
+              defaultValue={p.name}
+              className="w-full rounded-lg border px-3 py-2"
+            />
           </div>
 
           <div>
             <label className="block text-sm mb-1">Slug</label>
-            <input name="slug" defaultValue={p.slug} className="w-full rounded-lg border px-3 py-2" />
+            <input
+              name="slug"
+              defaultValue={p.slug}
+              className="w-full rounded-lg border px-3 py-2"
+            />
           </div>
 
           <div>
@@ -63,23 +83,39 @@ export default async function EditProduct({
               className="w-full rounded-lg border px-3 py-2"
             >
               <option value="">-- Không chọn --</option>
-              {cats.map(c => (
-                <option key={c.slug} value={c.slug}>{c.name}</option>
+              {cats.map((c) => (
+                <option key={c.slug} value={c.slug}>
+                  {c.name}
+                </option>
               ))}
             </select>
           </div>
 
           <div>
             <label className="block text-sm mb-1">Giá</label>
-            <input name="price" defaultValue={p.price ?? ""} className="w-full rounded-lg border px-3 py-2" />
+            <input
+              name="price"
+              defaultValue={p.price ?? ""}
+              className="w-full rounded-lg border px-3 py-2"
+            />
           </div>
 
           <div className="flex gap-4">
             <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" name="published" defaultChecked={p.published} /> Hiển thị
+              <input
+                type="checkbox"
+                name="published"
+                defaultChecked={p.published}
+              />{" "}
+              Hiển thị
             </label>
             <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" name="isFeatured" defaultChecked={p.isFeatured} /> Nổi bật
+              <input
+                type="checkbox"
+                name="isFeatured"
+                defaultChecked={p.isFeatured}
+              />{" "}
+              Nổi bật
             </label>
           </div>
         </div>
@@ -87,27 +123,49 @@ export default async function EditProduct({
         <div className="space-y-3">
           <div>
             <label className="block text-sm mb-1">Mô tả ngắn</label>
-            <input name="short" defaultValue={p.short || ""} className="w-full rounded-lg border px-3 py-2" />
+            <input
+              name="short"
+              defaultValue={p.short || ""}
+              className="w-full rounded-lg border px-3 py-2"
+            />
           </div>
 
           <div>
             <label className="block text-sm mb-1">Mô tả</label>
-            <textarea name="description" defaultValue={p.description || ""} className="w-full rounded-lg border px-3 py-2 h-28" />
+            <textarea
+              name="description"
+              defaultValue={p.description || ""}
+              className="w-full rounded-lg border px-3 py-2 h-28"
+            />
           </div>
 
           <div>
             <label className="block text-sm mb-1">Ảnh bìa (URL)</label>
-            <input name="coverImage" defaultValue={p.coverImage || ""} className="w-full rounded-lg border px-3 py-2" />
+            <input
+              name="coverImage"
+              defaultValue={p.coverImage || ""}
+              className="w-full rounded-lg border px-3 py-2"
+            />
           </div>
 
           <div>
             <label className="block text-sm mb-1">Ảnh phụ (mỗi dòng 1 URL)</label>
-            <textarea name="imageUrls" defaultValue={imageUrls} className="w-full rounded-lg border px-3 py-2 h-28" />
+            <textarea
+              name="imageUrls"
+              defaultValue={imageUrls}
+              className="w-full rounded-lg border px-3 py-2 h-28"
+            />
           </div>
 
           <div>
-            <label className="block text-sm mb-1">Thông số (mỗi dòng 'Tên: Giá trị')</label>
-            <textarea name="attributes" defaultValue={attrs} className="w-full rounded-lg border px-3 py-2 h-28" />
+            <label className="block text-sm mb-1">
+              Thông số (mỗi dòng 'Tên: Giá trị')
+            </label>
+            <textarea
+              name="attributes"
+              defaultValue={attrs}
+              className="w-full rounded-lg border px-3 py-2 h-28"
+            />
           </div>
         </div>
 
@@ -116,8 +174,12 @@ export default async function EditProduct({
             Lưu
           </button>
 
-          {/* ❌ Không lồng form; dùng formAction để xoá */}
-          <button className="rounded-lg border px-5 py-2 hover:bg-red-50" type="submit" formAction={del}>
+          {/* Không lồng form; dùng formAction để xoá */}
+          <button
+            className="rounded-lg border px-5 py-2 hover:bg-red-50"
+            type="submit"
+            formAction={del}
+          >
             Xoá
           </button>
         </div>

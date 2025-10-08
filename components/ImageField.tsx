@@ -1,7 +1,7 @@
 // components/ImageField.tsx
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import UploadImage from "@/components/UploadImage";
 
 type Props = {
@@ -20,10 +20,6 @@ export default function ImageField({
   const [url, setUrl] = useState<string>(defaultValue || "");
   const inputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    if (inputRef.current) inputRef.current.value = url || "";
-  }, [url]);
-
   return (
     <div className="space-y-2">
       {label ? <label className="font-medium">{label}</label> : null}
@@ -32,7 +28,7 @@ export default function ImageField({
         <input
           ref={inputRef}
           name={name}
-          defaultValue={defaultValue || ""}
+          value={url}
           placeholder={placeholder}
           className="border rounded px-3 py-2 w-full"
           onChange={(e) => setUrl(e.target.value)}
@@ -47,14 +43,15 @@ export default function ImageField({
         </button>
       </div>
 
+      {/* ✅ UploadImage chỉ có name + onUploaded */}
       <UploadImage
-        // component có sẵn của bạn — chỉ cần bắt url trả về
+        name={`${name}_upload`}
         onUploaded={(u: string) => setUrl(u)}
-        label="Upload ảnh"
       />
 
       {url ? (
         <div className="mt-2 border rounded p-2">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={url}
             alt="preview"

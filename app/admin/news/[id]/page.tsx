@@ -1,13 +1,13 @@
 // app/admin/news/[id]/page.tsx
-import { prisma } from '@/lib/prisma';
-import { updatePost, deletePost } from '../actions';
-import SubmitButton from '@/components/SubmitButton';
-import ConfirmDelete from '@/components/ConfirmDelete';
-import SlugField from '@/components/SlugField';
-import ImageField from '@/components/ImageField';
-import SeoPreview from '@/components/SeoPreview';
+import { prisma } from "@/lib/prisma";
+import { updatePost, deletePost } from "../actions";
+import SubmitButton from "@/components/SubmitButton";
+import ConfirmDelete from "@/components/ConfirmDelete";
+import SlugField from "@/components/SlugField";
+import ImageField from "@/components/ImageField";
+import SeoPreview from "@/components/SeoPreview";
 
-export const dynamic = 'force-dynamic';
+export const dynamic = "force-dynamic";
 
 export default async function EditPostPage({
   params,
@@ -28,7 +28,7 @@ export default async function EditPostPage({
   if (!p) return <div>Không tìm thấy bài viết</div>;
 
   async function onDelete() {
-    'use server';
+    "use server";
     await deletePost(idForPrisma);
   }
 
@@ -50,7 +50,7 @@ export default async function EditPostPage({
           <label className="font-medium">Tóm tắt</label>
           <textarea
             name="excerpt"
-            defaultValue={p.excerpt ?? ''}
+            defaultValue={p.excerpt ?? ""}
             rows={3}
             className="w-full border rounded px-2 py-1"
           />
@@ -60,35 +60,48 @@ export default async function EditPostPage({
           <label className="font-medium">Nội dung</label>
           <textarea
             name="content"
-            defaultValue={p.content ?? ''}
+            defaultValue={p.content ?? ""}
             rows={8}
             className="w-full border rounded px-2 py-1"
           />
           {/* Nếu dùng RichEditor, đảm bảo bind vào input hidden name="content" */}
         </div>
 
-        <ImageField name="coverImage" label="Ảnh đại diện" defaultValue={p.coverImage ?? ''} />
+        <ImageField
+          name="coverImage"
+          label="Ảnh đại diện"
+          defaultValue={p.coverImage ?? ""}
+        />
 
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="font-medium">Tags (phân cách dấu phẩy)</label>
             <input
               name="tags"
-              defaultValue={(p.tags || []).join(', ')}
+              defaultValue={(p.tags || []).join(", ")}
               className="w-full border rounded px-2 py-1"
             />
           </div>
           <label className="flex items-end gap-2">
-            <input type="checkbox" name="published" defaultChecked={p.published} />
+            <input
+              type="checkbox"
+              name="published"
+              defaultChecked={p.published}
+            />
             Published
           </label>
         </div>
 
+        {/* ✅ Dùng đúng props dạng *2 để khớp type của SeoPreview hiện tại */}
         <SeoPreview
-          defaultTitle={p.metaTitle ?? ''}
-          defaultDesc={p.metaDescription ?? ''}
-          defaultUrl={p.canonicalUrl ?? ''}
-          defaultImage={p.ogImage ?? ''}
+          titleName2="metaTitle"
+          descName2="metaDescription"
+          urlName2="canonicalUrl"
+          imageName2="ogImage"
+          defaultTitle2={p.metaTitle ?? ""}
+          defaultDesc2={p.metaDescription ?? ""}
+          defaultUrl2={p.canonicalUrl ?? ""}
+          defaultImage2={p.ogImage ?? ""}
           defaultNoindex={p.noindex ?? false}
           defaultNofollow={p.nofollow ?? false}
         />

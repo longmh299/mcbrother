@@ -3,11 +3,26 @@
 
 import * as React from 'react';
 import dynamic from 'next/dynamic';
+import type { IAllProps as TinyMCEProps } from '@tinymce/tinymce-react';
 
-// Chỉ load Editor ở client, KHÔNG SSR
-const TinyMCEEditor = dynamic(
-  async () => (await import('@tinymce/tinymce-react')).Editor,
-  { ssr: false, loading: () => <div className="min-h-[180px] rounded-lg border p-3 text-sm text-gray-500">Đang tải trình soạn thảo…</div> }
+/**
+ * ✅ Chỉ load Editor ở client, KHÔNG SSR.
+ * Dùng cast sang React.ComponentType<TinyMCEProps> để tránh xung đột kiểu giữa
+ * các dạng ComponentType mà @tinymce/tinymce-react export.
+ */
+const TinyMCEEditor = dynamic<TinyMCEProps>(
+  () =>
+    import('@tinymce/tinymce-react').then(
+      (m) => m.Editor as unknown as React.ComponentType<TinyMCEProps>
+    ),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="min-h-[180px] rounded-lg border p-3 text-sm text-gray-500">
+        Đang tải trình soạn thảo…
+      </div>
+    ),
+  }
 );
 
 type Props = {
@@ -35,7 +50,9 @@ export default function RichEditorClient({
   const [mounted, setMounted] = React.useState(false);
 
   React.useEffect(() => setMounted(true), []);
-  React.useEffect(() => { setContent(value ?? ''); }, [value]);
+  React.useEffect(() => {
+    setContent(value ?? '');
+  }, [value]);
 
   // render skeleton trong SSR/lần đầu để tránh mismatch
   if (!mounted) {
@@ -54,16 +71,30 @@ export default function RichEditorClient({
       {name ? <input type="hidden" name={name} value={content} /> : null}
 
       <TinyMCEEditor
-        id={id || name || 'mcbe-editor'}      // id ổn định để tránh lệch
+        id={id || name || 'mcbe-editor'} // id ổn định để tránh lệch
         apiKey={apiKey}
         value={content}
         init={{
           height,
           menubar: false,
           plugins: [
-            'advlist','autolink','lists','link','image','charmap','preview','anchor',
-            'searchreplace','visualblocks','code','fullscreen','insertdatetime','media',
-            'table','help','wordcount',
+            'advlist',
+            'autolink',
+            'lists',
+            'link',
+            'image',
+            'charmap',
+            'preview',
+            'anchor',
+            'searchreplace',
+            'visualblocks',
+            'code',
+            'fullscreen',
+            'insertdatetime',
+            'media',
+            'table',
+            'help',
+            'wordcount',
           ],
           toolbar:
             'undo redo | blocks | bold italic underline | alignleft aligncenter alignright | bullist numlist outdent indent | link image media table | removeformat | code',

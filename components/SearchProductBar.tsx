@@ -18,7 +18,7 @@ export default function SearchProductBar({
   const router = useRouter();
 
   const [q, setQ] = React.useState(initialQ ?? '');
-  const [cat, setCat] = React.useState(initialCategoryId ?? '');
+  const [cat, setCat] = React.useState(initialCategoryId ?? ''); // string
   const [openCats, setOpenCats] = React.useState(false);
   const [suggest, setSuggest] = React.useState<{ name: string; slug: string }[]>([]);
   const [showSuggest, setShowSuggest] = React.useState(false);
@@ -144,22 +144,25 @@ export default function SearchProductBar({
             >
               Tất cả danh mục
             </button>
-            {categories.map((c) => (
-              <button
-                key={c.id}
-                type="button"
-                onClick={() => {
-                  setCat(c.id);
-                  setOpenCats(false);
-                  applyFilter({ categoryId: c.id, page: 1 });
-                }}
-                className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-50 ${
-                  cat === c.id ? 'font-medium' : ''
-                }`}
-              >
-                {c.name}
-              </button>
-            ))}
+            {categories.map((c) => {
+              const cid = String(c.id); // ✅ convert number -> string
+              return (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => {
+                    setCat(cid); // ✅ string
+                    setOpenCats(false);
+                    applyFilter({ categoryId: cid, page: 1 }); // ✅ string
+                  }}
+                  className={`w-full text-left px-3 py-2 text-sm hover:bg-gray-50 ${
+                    cat === cid ? 'font-medium' : ''
+                  }`}
+                >
+                  {c.name}
+                </button>
+              );
+            })}
           </div>
         )}
 
@@ -172,8 +175,7 @@ export default function SearchProductBar({
                   <button
                     type="button"
                     onClick={() => {
-                      // đi thẳng tới sản phẩm
-                      router.push(`/san-pham/${s.slug}`);
+                      router.push(`/san-pham/${s.slug}`); // đi thẳng tới sản phẩm
                       setShowSuggest(false);
                     }}
                     className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50"

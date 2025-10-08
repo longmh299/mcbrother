@@ -6,41 +6,71 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { slugify } from '@/lib/slug';
 
-const toBool = (v: FormDataEntryValue | null) =>
-  v === 'on' || v === 'true' || v === '1';
+/* -------------------- helpers -------------------- */
+function asString(v: FormDataEntryValue | null) {
+  return (v ?? '').toString().trim();
+}
+function asBool(v: FormDataEntryValue | null) {
+  const s = asString(v).toLowerCase();
+  return s === '1' || s === 'true' || s === 'on';
+}
+function asInt(v: FormDataEntryValue | null) {
+  const s = asString(v);
+  if (!s) return null;
+  const n = Number(s);
+  return Number.isFinite(n) ? n : null;
+}
+function asTags(v: FormDataEntryValue | null): string[] {
+  const s = asString(v);
+  if (!s) return [];
+  return s.split(',').map((x) => x.trim()).filter(Boolean);
+}
+// ép kiểu id cho where (Int hoặc String tuỳ schema)
+function toWhereId(id: string | number) {
+  if (typeof id === 'number') return id as any;
+  return /^\d+$/.test(id) ? (Number(id) as any) : (id as any);
+}
 
-/** Tạo bài viết */
+/* -------------------- CREATE -------------------- */
 export async function createPost(formData: FormData) {
-  const title = String(formData.get('title') || '').trim();
+  const title = asString(formData.get('title'));
   if (!title) redirect('/admin/news/new?err=missing_title');
 
-  let slug = String(formData.get('slug') || '').trim();
-  if (!slug) slug = slugify(title);
+  const slug = asString(formData.get('slug')) || slugify(title);
+  const excerpt = asString(formData.get('excerpt')) || null;
+  const content = asString(formData.get('content')) || null;
 
-  const excerpt = String(formData.get('excerpt') || '').trim() || null;
-  const content = String(formData.get('content') || '').trim() || null;
+  const coverImage = asString(formData.get('coverImage')) || null;
+  const tags = asTags(formData.get('tags'));
+  const published = asBool(formData.get('published'));
 
-  const coverImage = String(formData.get('coverImage') || '').trim() || null;
-  const tagsRaw = String(formData.get('tags') || '').trim();
-  const tags = tagsRaw
-    ? tagsRaw.split(',').map((s) => s.trim()).filter(Boolean)
-    : [];
-
-  const published = toBool(formData.get('published'));
-  const categoryId = String(formData.get('categoryId') || '').trim() || null;
+  // ✅ Prisma cần number | null
+  const categoryId = asInt(formData.get('categoryId')); // number | null
 
   // SEO
-  const metaTitle = String(formData.get('metaTitle') || '').trim() || null;
-  const metaDescription = String(formData.get('metaDescription') || '').trim() || null;
-  const canonicalUrl = String(formData.get('canonicalUrl') || '').trim() || null;
-  const ogImage = String(formData.get('ogImage') || '').trim() || null;
-  const noindex = toBool(formData.get('noindex'));
-  const nofollow = toBool(formData.get('nofollow'));
+  const metaTitle = asString(formData.get('metaTitle')) || null;
+  const metaDescription = asString(formData.get('metaDescription')) || null;
+  const canonicalUrl = asString(formData.get('canonicalUrl')) || null;
+  const ogImage = asString(formData.get('ogImage')) || null;
+  const noindex = asBool(formData.get('noindex'));
+  const nofollow = asBool(formData.get('nofollow'));
 
   await prisma.post.create({
     data: {
-      slug, title, excerpt, content, coverImage, tags, published, categoryId,
-      metaTitle, metaDescription, canonicalUrl, ogImage, noindex, nofollow,
+      title,
+      slug,
+      excerpt,
+      content,
+      coverImage,
+      tags,
+      published,
+      categoryId, // ✅ đúng kiểu
+      metaTitle,
+      metaDescription,
+      canonicalUrl,
+      ogImage,
+      noindex,
+      nofollow,
     },
   });
 
@@ -48,39 +78,39 @@ export async function createPost(formData: FormData) {
   redirect('/admin/news?ok=1');
 }
 
-/** Cập nhật + SlugRedirect khi đổi slug */
+/* -------------------- UPDATE (+ slug redirect) -------------------- */
 export async function updatePost(id: string | number, formData: FormData) {
-  const current = await prisma.post.findUnique({ where: { id: typeof id === 'string' && /^\d+$/.test(id) ? Number(id) : (id as any) }, select: { slug: true } });
+  const whereId = toWhereId(id);
+
+  const current = await prisma.post.findUnique({
+    where: { id: whereId },
+    select: { slug: true },
+  });
   if (!current) redirect('/admin/news?err=not_found');
 
-  const title = String(formData.get('title') || '').trim();
-  const newSlug = (String(formData.get('slug') || '').trim() || slugify(title));
+  const title = asString(formData.get('title'));
+  const newSlug = asString(formData.get('slug')) || slugify(title);
 
   const data = {
     slug: newSlug,
     title,
-    excerpt: String(formData.get('excerpt') || '').trim() || null,
-    content: String(formData.get('content') || '').trim() || null,
-    coverImage: String(formData.get('coverImage') || '').trim() || null,
-    tags: (String(formData.get('tags') || '').trim() || '')
-      .split(',')
-      .map((s) => s.trim())
-      .filter(Boolean),
-    published: toBool(formData.get('published')),
-    categoryId: String(formData.get('categoryId') || '').trim() || null,
-    metaTitle: String(formData.get('metaTitle') || '').trim() || null,
-    metaDescription: String(formData.get('metaDescription') || '').trim() || null,
-    canonicalUrl: String(formData.get('canonicalUrl') || '').trim() || null,
-    ogImage: String(formData.get('ogImage') || '').trim() || null,
-    noindex: toBool(formData.get('noindex')),
-    nofollow: toBool(formData.get('nofollow')),
+    excerpt: asString(formData.get('excerpt')) || null,
+    content: asString(formData.get('content')) || null,
+    coverImage: asString(formData.get('coverImage')) || null,
+    tags: asTags(formData.get('tags')),
+    published: asBool(formData.get('published')),
+    categoryId: asInt(formData.get('categoryId')), // ✅ number | null
+    metaTitle: asString(formData.get('metaTitle')) || null,
+    metaDescription: asString(formData.get('metaDescription')) || null,
+    canonicalUrl: asString(formData.get('canonicalUrl')) || null,
+    ogImage: asString(formData.get('ogImage')) || null,
+    noindex: asBool(formData.get('noindex')),
+    nofollow: asBool(formData.get('nofollow')),
   };
 
   await prisma.$transaction(async (tx) => {
-    await tx.post.update({
-      where: { id: typeof id === 'string' && /^\d+$/.test(id) ? Number(id) : (id as any) },
-      data,
-    });
+    await tx.post.update({ where: { id: whereId }, data });
+
     if (current.slug && current.slug !== newSlug) {
       await tx.slugRedirect.upsert({
         where: { fromSlug: current.slug },
@@ -94,20 +124,19 @@ export async function updatePost(id: string | number, formData: FormData) {
   redirect('/admin/news?ok=1');
 }
 
-/** Xoá bài viết */
+/* -------------------- DELETE -------------------- */
 export async function deletePost(id: string | number) {
   await prisma.post.delete({
-    where: { id: typeof id === 'string' && /^\d+$/.test(id) ? Number(id) : (id as any) },
+    where: { id: toWhereId(id) },
   });
   revalidatePath('/admin/news');
   redirect('/admin/news?ok=1');
 }
 
-/** Bulk publish/unpublish — ép kiểu ID an toàn (Int/String) + batch */
+/* -------------------- BULK publish/unpublish -------------------- */
 export async function bulkPostOp(formData: FormData) {
-  const op = String(formData.get('op') || 'publish'); // 'publish' | 'unpublish'
+  const op = asString(formData.get('op')) || 'publish'; // 'publish' | 'unpublish'
 
-  // lấy & làm sạch ids từ form
   const idsStr = formData
     .getAll('ids')
     .map((v) => (typeof v === 'string' ? v : String(v)))
@@ -116,7 +145,6 @@ export async function bulkPostOp(formData: FormData) {
 
   if (!idsStr.length) return;
 
-  // nếu TẤT CẢ là số -> cast sang number[], ngược lại giữ string[]
   const allNumeric = idsStr.every((s) => /^\d+$/.test(s));
   const idsForPrisma: (number | string)[] = allNumeric
     ? idsStr.map((s) => Number(s))
@@ -125,7 +153,6 @@ export async function bulkPostOp(formData: FormData) {
   const BATCH = 200;
   for (let i = 0; i < idsForPrisma.length; i += BATCH) {
     const chunk = idsForPrisma.slice(i, i + BATCH) as any[];
-
     await prisma.post.updateMany({
       where: { id: { in: chunk } as any },
       data: { published: op === 'publish' },

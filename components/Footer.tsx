@@ -60,7 +60,7 @@ export default function Footer() {
           <div className="md:col-span-5 space-y-5">
             <h3
               className="text-2xl md:text-3xl font-extrabold uppercase leading-tight"
-              style={{ color: YELLOW }}
+              style={{ color: "white" }}
             >
               Công ty cổ phần<br className="hidden sm:block" />
               thiết bị MCBROTHER

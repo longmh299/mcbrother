@@ -1,25 +1,58 @@
-"use client";
+// app/admin/login/page.tsx
+'use client';
 
-import { useSearchParams } from "next/navigation";
-import { useActionState as useFormState } from "react";
-import { loginAction } from "./actions";
+import { Suspense } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
+import Link from 'next/link';
 
-export default function AdminLogin() {
-  const sp = useSearchParams();
-  const next = sp.get("next") || "/admin";
-  const [state, formAction] = useFormState(loginAction, null);
+function LoginInner() {
+  const params = useSearchParams();
+  const router = useRouter();
+  const next = params.get('next') || '/admin';
+
+  async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    // TODO: gọi server action / API login của bạn ở đây
+    // await login(new FormData(e.currentTarget));
+    router.push(next);
+  }
 
   return (
-    <div className="container max-w-md py-10">
-      <h1 className="text-2xl font-semibold mb-4">Đăng nhập Quản trị</h1>
+    <div className="mx-auto max-w-sm rounded-xl border bg-white p-6 shadow-sm">
+      <h1 className="mb-4 text-xl font-semibold">Đăng nhập</h1>
 
-      <form action={formAction} className="space-y-3 rounded-xl border bg-white p-5">
+      <form onSubmit={onSubmit} className="space-y-3">
+        <input
+          name="email"
+          type="email"
+          placeholder="Email"
+          className="w-full rounded-lg border px-3 py-2"
+          required
+        />
+        <input
+          name="password"
+          type="password"
+          placeholder="Mật khẩu"
+          className="w-full rounded-lg border px-3 py-2"
+          required
+        />
+        <button className="w-full rounded-lg bg-black px-4 py-2 text-white hover:bg-gray-800">
+          Đăng nhập
+        </button>
         <input type="hidden" name="next" value={next} />
-        <input name="user" placeholder="Tài khoản" className="w-full border rounded px-3 py-2" required />
-        <input name="pass" placeholder="Mật khẩu" type="password" className="w-full border rounded px-3 py-2" required />
-        {state?.error && <div className="text-red-600 text-sm">{state.error}</div>}
-        <button className="w-full bg-black text-white rounded px-4 py-2">Đăng nhập</button>
       </form>
+
+      <div className="mt-3 text-xs text-gray-500">
+        <Link href="/">← Về trang chủ</Link>
+      </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="p-6 text-sm text-gray-500">Đang tải…</div>}>
+      <LoginInner />
+    </Suspense>
   );
 }

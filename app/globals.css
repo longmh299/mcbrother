@@ -2,6 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
+
 html,body{@apply bg-slate-50 text-slate-900}
 
 .blog-content table {
@@ -26,3 +27,25 @@ html,body{@apply bg-slate-50 text-slate-900}
   -webkit-overflow-scrolling: touch;
 }
 .blog-content p { margin: .5rem 0; }
+/* Marquee cho benefit strip */
+/* Marquee cho benefit strip (1 dòng chạy lặp) */
+@keyframes marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-100%); }
+}
+/* Header thương hiệu */
+.brand-title {
+  text-transform: uppercase;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  color: #dc2626;              /* đỏ tương tự ảnh */
+  /* viền trắng quanh chữ */
+  -webkit-text-stroke: 1.2px #fff;
+  text-shadow:
+    0 0 1px #fff,
+    0 0 2px #fff;
+}
+@media (min-width: 768px) {
+  .brand-title { -webkit-text-stroke: 1.6px #fff; }
+}
+.brand-subtitle { color:#1e4b8f; } /* xanh đậm cho tagline */

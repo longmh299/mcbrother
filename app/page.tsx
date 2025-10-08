@@ -3,6 +3,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import TickerBar from "@/components/TickerBar";
+import FeaturedSlider from "@/components/FeaturedSlider";
+
 
 export const dynamic = "force-dynamic";
 
@@ -130,12 +132,6 @@ export default async function HomePage() {
       {/* ====== HERO ====== */}
       <section className="relative overflow-hidden">
         <div className="absolute inset-0 bg-[#2653ed]" />
-        {/* Banner image overlay (đổi src theo ảnh của bạn) */}
-        {/* <img
-          src="/images/home-hero.jpg"
-          alt=""
-          className="absolute inset-0 w-full h-full object-cover opacity-20"
-        /> */}
         <div className="relative max-w-7xl mx-auto px-4 lg:px-6 py-14 md:py-20 text-white">
           <div className="max-w-2xl space-y-4">
             <p className="uppercase tracking-wider text-white/90">
@@ -169,22 +165,6 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* ====== TICKER ======
-      <section className="bg-[#1437d1] text-white text-sm">
-        <div className="max-w-7xl mx-auto px-4 lg:px-6 h-10 flex items-center overflow-hidden">
-          <div className="animate-marquee whitespace-nowrap">
-            <span className="mr-10">
-              Hotline: 0834 551 888
-            </span>
-            <span className="mr-10">
-              🚚 Giao hàng toàn quốc – Bảo hành tận nơi – Hỗ trợ kỹ thuật 24/7
-            </span>
-            <span>
-              🛠️ Nhận tư vấn giải pháp trọn gói cho nhà máy / xưởng sản xuất
-            </span>
-          </div>
-        </div>
-      </section> */}
       <TickerBar />
 
       {/* ====== GIỚI THIỆU NGẮN + CTA ====== */}
@@ -212,95 +192,14 @@ export default async function HomePage() {
         </div>
       </section>
 
-<section className="max-w-7xl mx-auto px-4 lg:px-6 py-8 space-y-5">
-  <div className="flex items-end justify-between">
-    <h2 className="text-2xl md:text-3xl font-semibold">Sản phẩm nổi bật</h2>
-    <Link href="/san-pham" className="text-sm text-sky-700 hover:underline">
-      Xem tất cả
-    </Link>
-  </div>
-
-  {products.length === 0 ? (
-    <div className="text-gray-500">Chưa có sản phẩm.</div>
-  ) : (
-    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 md:gap-4">
-      {products.map((p, idx) => {
-        const createdAt = p.createdAt ? new Date(p.createdAt) : null;
-        const isNew = createdAt ? (Date.now() - createdAt.getTime()) / 86400000 <= 30 : false; // trong 30 ngày
-        const isHot = (p as any).isFeatured === true || idx < 3; // ưu tiên isFeatured, fallback 3 sản phẩm đầu
-
-        return (
-          <Link
-            key={p.id}
-            href={`/san-pham/${p.slug}`}
-            className="group relative block overflow-hidden rounded-2xl border border-gray-200 bg-white
-                       transition hover:border-sky-200 hover:shadow-lg"
-          >
-            {/* Ảnh */}
-            <div className="relative aspect-[4/3] bg-gray-50">
-              {p.coverImage ? (
-                <img
-                  src={p.coverImage}
-                  alt={p.name}
-                  className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.04]"
-                  loading="lazy"
-                />
-              ) : (
-                <div className="grid h-full place-items-center text-gray-400 text-sm">No Image</div>
-              )}
-
-              {/* Badges đẹp hơn */}
-              <div className="absolute left-2 top-2 flex flex-col gap-1">
-                {isHot && (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-rose-500 to-orange-500
-                                   px-2.5 py-1 text-[11px] font-semibold text-white shadow-sm ring-1 ring-white/30">
-                    <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="currentColor">
-                      <path d="M13.5 2.1c.3 2.3-1 3.4-2.7 4.8C9 8 8 9.2 8 11.2c0 2.6 2.1 4.8 4.8 4.8 3 0 5.2-2.6 4.6-5.6-.4-2-2.1-3-2.5-5.5-.1-.6.2-1.6.6-2.7-1.1.2-1.9.6-2.1.9Z"/>
-                    </svg>
-                    Hot
-                  </span>
-                )}
-                {isNew && (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-emerald-600 to-teal-500
-                                   px-2.5 py-1 text-[11px] font-semibold text-white shadow-sm ring-1 ring-white/30">
-                    <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="currentColor">
-                      <path d="M12 2l1.6 4.2L18 8l-4.4 1.8L12 14l-1.6-4.2L6 8l4.4-1.8L12 2zM5 16l.9 2.4L8 19l-2.1.6L5 22l-.9-2.4L2 19l2.1-.6L5 16zm14 0l.9 2.4L22 19l-2.1.6L19 22l-.9-2.4L16 19l2.1-.6L19 16z"/>
-                    </svg>
-                    New
-                  </span>
-                )}
-              </div>
-            </div>
-
-            {/* Nội dung */}
-            <div className="p-3 space-y-1.5">
-              <div className="text-[15px] font-bold text-gray-900">
-                {fmtVND(p.price)}
-              </div>
-              <h3 className="line-clamp-2 font-semibold text-gray-900 transition group-hover:text-sky-700">
-                {p.name}
-              </h3>
-              {p.short && (
-                <p className="text-sm text-gray-500 line-clamp-2">{p.short}</p>
-              )}
-            </div>
-
-            {/* CTA mũi tên xuất hiện khi hover (desktop) */}
-            <div className="pointer-events-none absolute right-2 bottom-2 opacity-0 translate-x-1
-                            transition group-hover:opacity-100 group-hover:translate-x-0">
-              <div className="rounded-full bg-black/80 text-white p-2 shadow-sm">
-                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M5 12h14M13 5l7 7-7 7"/>
-                </svg>
-              </div>
-            </div>
-          </Link>
-        );
-      })}
-    </div>
-  )}
+    <section>
+  <FeaturedSlider
+    items={products}
+    title="Sản phẩm nổi bật"
+    viewAllHref="/san-pham"
+    autoplayMs={4500} // tùy chỉnh hoặc bỏ
+  />
 </section>
-
 
       {/* ====== SỐ LIỆU UY TÍN ====== */}
       <section className="bg-slate-50">
@@ -410,7 +309,7 @@ export default async function HomePage() {
           <div className="md:col-span-4">
             <div className="aspect-video rounded-xl overflow-hidden border bg-black">
               <iframe
-                src="https://www.youtube.com/embed/ueRQXgNbzoE?si=rV7lwHXh1mmgZKRR" 
+                src="https://www.youtube.com/embed/ueRQXgNbzoE?si=rV7lwHXh1mmgZKRR"
                 title="MCBROTHER Video"
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                 allowFullScreen
@@ -426,14 +325,14 @@ export default async function HomePage() {
 
       {/* ====== CTA CUỐI TRANG ====== */}
       <section className="relative overflow-hidden">
-        <div className="absolute inset-0 bg-[#2653ed]" />
-        <div className="relative max-w-7xl mx-auto px-4 lg:px-6 py-10 md:py-12 text-white">
+        <div className="absolute inset-0 bg-[#f5ed42]" />
+        <div className="relative max-w-7xl mx-auto px-4 lg:px-6 py-10 md:py-12 text-black">
           <div className="grid md:grid-cols-3 gap-6 items-center">
             <div className="md:col-span-2">
               <h3 className="text-2xl md:text-3xl font-extrabold">
                 Cần tư vấn chọn máy phù hợp?
               </h3>
-              <p className="mt-2 text-white/90">
+              <p className="mt-2 text-black/90">
                 Chúng tôi sẽ liên hệ trong 24h để tư vấn giải pháp tối ưu chi phí
                 & hiệu suất cho mô hình của bạn.
               </p>
@@ -441,7 +340,7 @@ export default async function HomePage() {
             <div className="md:text-right">
               <Link
                 href="/lien-he"
-                className="inline-flex items-center gap-2 px-5 py-3 rounded-md bg-[#f5ed42] text-black font-semibold hover:brightness-110"
+                className="inline-flex items-center gap-2 px-5 py-3 rounded-md bg-[#2653ed] text-white font-semibold hover:brightness-110"
               >
                 Liên hệ ngay
               </Link>
@@ -452,6 +351,3 @@ export default async function HomePage() {
     </main>
   );
 }
-
-/* ====== nhỏ xíu CSS chạy chữ ticker (Tailwind không có sẵn) ======
-   Bạn có thể đặt phần này vào globals.css nếu muốn tái sử dụng.  */

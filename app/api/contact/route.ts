@@ -2,11 +2,11 @@
 import { NextResponse } from "next/server";
 import { Resend } from "resend";
 
-export const runtime = "nodejs"; // bắt buộc cho Resend/Node API
+export const runtime = "nodejs";
 
 const resend = new Resend(process.env.RESEND_API_KEY!);
 
-// Hàm render nội dung email
+// Render HTML nội dung mail
 function renderHtml(o: {
   name: string; email: string; phone?: string; subject?: string; message: string;
   ip?: string | null; ua?: string | null;
@@ -43,7 +43,6 @@ export async function POST(req: Request) {
     if (!name || !email || !message) {
       return NextResponse.json({ ok: false, error: "Thiếu thông tin bắt buộc" }, { status: 400 });
     }
-
     const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRe.test(email)) {
       return NextResponse.json({ ok: false, error: "Email không hợp lệ" }, { status: 400 });
@@ -51,10 +50,21 @@ export async function POST(req: Request) {
 
     const html = renderHtml({ name, email, phone, subject, message, ip, ua });
 
+    // Người nhận: hỗ trợ 1 hoặc nhiều email, phân tách dấu phẩy trong env
+    const toRaw = process.env.CONTACT_TO_EMAIL || "";
+    const toList = toRaw
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+
+    const from =
+      process.env.MAIL_FROM ||
+      "MCBROTHER <onboarding@resend.dev>"; // đổi sang domain đã verify khi sẵn sàng
+
     const { data, error } = await resend.emails.send({
-      from: "MCBROTHER <onboarding@resend.dev>", // đổi lại sau khi verify domain
-      to: process.env.CONTACT_TO_EMAIL!,         // địa chỉ nhận
-      reply_to: email,
+      from,
+      to: toList.length ? toList : ["onboarding@resend.dev"],
+      replyTo: email, // ✅ đúng key
       subject: `📩 Liên hệ mới: ${subject || name}`,
       html,
     });
@@ -64,7 +74,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, error: String(error) }, { status: 500 });
     }
 
-    console.log("RESEND_ID", data?.id);
     return NextResponse.json({ ok: true, id: data?.id });
   } catch (e) {
     console.error("CONTACT_API_ERROR", e);
