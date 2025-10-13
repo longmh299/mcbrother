@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic';
 const ZALO_URL = 'https://zalo.me/0834551888';
 /* ================================================== */
 
-// Định dạng VND
+/* ---------- Helpers ---------- */
 function formatVND(n: number) {
   try {
     return new Intl.NumberFormat('vi-VN').format(n) + '₫';
@@ -19,36 +19,45 @@ function formatVND(n: number) {
   }
 }
 
+/** Thêm transform Cloudinary để resize/nén/crop cân đối; không phải Cloudinary → giữ nguyên */
+function cld(url?: string | null, w = 900, h = 600) {
+  if (!url) return null;
+  try {
+    const u = new URL(url);
+    if (u.hostname.includes('res.cloudinary.com')) {
+      return url.replace('/upload/', `/upload/c_fill,g_auto,f_auto,q_auto,w_${w},h_${h}/`);
+    }
+  } catch {}
+  return url;
+}
+
+/** Tạo srcSet cho màn hình lớn/nhỏ (chỉ áp dụng Cloudinary) */
+function cldSet(url?: string | null, baseW = 900, baseH = 600) {
+  if (!url) return undefined;
+  const W = [480, 720, baseW, 1200];
+  return W.map(
+    (w) => `${cld(url, w, Math.round((w * baseH) / baseW))} ${w}w`
+  ).join(', ');
+}
+
 /**
  * PriceInline (bản “Liên hệ” màu đỏ)
  * - Luôn prefix "Giá: ..."
- * - Có giá -> hiển thị số tiền
- * - Không có giá -> "Giá: Liên hệ" màu đỏ
- * - Tránh <a> lồng <a> bằng prop noAnchor (dùng khi đặt bên trong <Link>)
+ * - Tránh <a> lồng <a> bằng prop noAnchor
  */
 function PriceInline({
   price,
   noAnchor = false,
 }: {
   price?: number | null;
-  /** Nếu phần này nằm BÊN TRONG <Link> cha → true để render <span> thay vì <a> */
   noAnchor?: boolean;
 }) {
-  if (typeof price === 'number') {
-    return <>Giá: {formatVND(price)}</>;
-  }
-  if (noAnchor) {
-    return <span className="text-red-600 font-semibold">Giá: Liên hệ</span>;
-  }
+  if (typeof price === 'number') return <>Giá: {formatVND(price)}</>;
+  if (noAnchor) return <span className="text-red-600 font-semibold">Giá: Liên hệ</span>;
   return (
     <span className="text-red-600 font-semibold">
       Giá:{' '}
-      <a
-        href={ZALO_URL}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="hover:underline"
-      >
+      <a href={ZALO_URL} target="_blank" rel="noopener noreferrer" className="hover:underline">
         Liên hệ
       </a>
     </span>
@@ -82,15 +91,13 @@ type Params = { slug: string };
 export async function generateMetadata(
   { params: paramsPromise }: { params: Promise<Params> }
 ): Promise<Metadata> {
-  const { slug } = await paramsPromise; // ✅ await params
+  const { slug } = await paramsPromise;
   const p = await getProduct(slug);
   if (!p) return {};
   const title = p.metaTitle || p.name;
   const description = p.metaDescription || p.short || undefined;
   const canonical = p.canonicalUrl || undefined;
-  const ogImages =
-    (p.ogImage || p.coverImage) ? [String(p.ogImage || p.coverImage)] : undefined;
-
+  const ogImages = (p.ogImage || p.coverImage) ? [String(p.ogImage || p.coverImage)] : undefined;
   return {
     title,
     description,
@@ -104,7 +111,7 @@ export async function generateMetadata(
 export default async function ProductDetailPage(
   { params: paramsPromise }: { params: Promise<Params> }
 ) {
-  const { slug } = await paramsPromise; // ✅ await params
+  const { slug } = await paramsPromise;
   const p = await getProduct(slug);
 
   if (!p || !p.published) {
@@ -162,6 +169,9 @@ export default async function ProductDetailPage(
   // Mô tả (giải mã entity để giữ <table>...)
   const descHtml = decodeHtmlEntities(p.description);
 
+  const mainImg = cld(p.coverImage, 900, 600); // 4:3
+  const mainSrcSet = cldSet(p.coverImage, 900, 600);
+
   return (
     <div className="max-w-6xl mx-auto px-4 py-6 lg:py-10 space-y-10">
       {/* JSON-LD */}
@@ -184,12 +194,23 @@ export default async function ProductDetailPage(
 
       {/* Top grid */}
       <div className="grid md:grid-cols-2 gap-6 lg:gap-10">
+        {/* Ảnh chính: khung cố định 4:3 + crop cân đối */}
         <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
-          {p.coverImage ? (
-            <img src={p.coverImage} alt={p.name} className="w-full h-auto object-cover" />
-          ) : (
-            <div className="aspect-[4/3] bg-gray-50 flex items-center justify-center text-gray-400">No Image</div>
-          )}
+          <div className="relative w-full aspect-[4/3]">
+            {mainImg ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={mainImg}
+                srcSet={mainSrcSet}
+                sizes="(max-width: 768px) 100vw, 48vw"
+                alt={p.name}
+                decoding="async"
+                className="absolute inset-0 h-full w-full object-cover"
+              />
+            ) : (
+              <div className="absolute inset-0 grid place-items-center text-gray-400">No Image</div>
+            )}
+          </div>
         </div>
 
         <div className="space-y-4">
@@ -313,65 +334,71 @@ export default async function ProductDetailPage(
           {/* MOBILE/TABLET: Carousel ngang */}
           <div className="lg:hidden px-4 overflow-x-auto snap-x snap-mandatory">
             <div className="flex gap-3">
-              {related.map((rp) => (
-                <Link
-                  key={rp.id}
-                  href={`/san-pham/${rp.slug}`}
-                  className="snap-start w-[60%] min-w-[60%] sm:w-[42%] sm:min-w-[42%]
+              {related.map((rp) => {
+                const u = cld(rp.coverImage, 540, 360); // mobile thumb 3:2
+                return (
+                  <Link
+                    key={rp.id}
+                    href={`/san-pham/${rp.slug}`}
+                    className="snap-start w-[60%] min-w-[60%] sm:w-[42%] sm:min-w-[42%]
                        rounded-lg overflow-hidden border border-gray-200 bg-white hover:shadow-md transition"
-                >
-                  <div className="aspect-[3/2] max-h-40 bg-gray-50 overflow-hidden">
-                    {rp.coverImage ? (
-                      <img src={rp.coverImage} alt={rp.name} className="h-full w-full object-cover" />
-                    ) : (
-                      <div className="grid h-full w-full place-items-center text-xs text-gray-400">No Image</div>
-                    )}
-                  </div>
-                  <div className="p-2 space-y-1">
-                    <div className="text-sm font-semibold">
-                      {/* TRÁNH <a> lồng <a> */}
-                      <PriceInline price={rp.price} noAnchor />
+                  >
+                    <div className="relative aspect-[3/2] max-h-40 bg-gray-50 overflow-hidden">
+                      {u ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={u} alt={rp.name} className="absolute inset-0 h-full w-full object-cover" loading="lazy" />
+                      ) : (
+                        <div className="absolute inset-0 grid place-items-center text-xs text-gray-400">No Image</div>
+                      )}
                     </div>
-                    <div className="text-xs font-medium text-gray-900 leading-snug line-clamp-2">{rp.name}</div>
-                    {rp.short && <p className="text-[11px] text-gray-500 line-clamp-2">{rp.short}</p>}
-                  </div>
-                </Link>
-              ))}
+                    <div className="p-2 space-y-1">
+                      <div className="text-sm font-semibold">
+                        <PriceInline price={rp.price} noAnchor />
+                      </div>
+                      <div className="text-xs font-medium text-gray-900 leading-snug line-clamp-2">{rp.name}</div>
+                      {rp.short && <p className="text-[11px] text-gray-500 line-clamp-2">{rp.short}</p>}
+                    </div>
+                  </Link>
+                );
+              })}
             </div>
           </div>
 
           {/* DESKTOP: Grid */}
           <div className="hidden lg:grid gap-6 lg:grid-cols-3 xl:grid-cols-4">
-            {related.map((rp) => (
-              <Link
-                key={rp.id}
-                href={`/san-pham/${rp.slug}`}
-                className="group rounded-xl overflow-hidden border border-gray-200 bg-white hover:shadow-md transition flex flex-col"
-              >
-                <div className="relative w-full aspect-[4/3] bg-gray-50 overflow-hidden">
-                  {rp.coverImage ? (
-                    <img
-                      src={rp.coverImage}
-                      alt={rp.name}
-                      className="absolute inset-0 h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-[1.04]"
-                      loading="lazy"
-                    />
-                  ) : (
-                    <div className="absolute inset-0 grid place-items-center text-sm text-gray-400">No Image</div>
-                  )}
-                </div>
-                <div className="p-3 flex-1 flex flex-col gap-2">
-                  <div className="text-[15px] font-semibold">
-                    {/* TRÁNH <a> lồng <a> */}
-                    <PriceInline price={rp.price} noAnchor />
+            {related.map((rp) => {
+              const u = cld(rp.coverImage, 600, 450); // grid thumb 4:3
+              return (
+                <Link
+                  key={rp.id}
+                  href={`/san-pham/${rp.slug}`}
+                  className="group rounded-xl overflow-hidden border border-gray-200 bg-white hover:shadow-md transition flex flex-col"
+                >
+                  <div className="relative w-full aspect-[4/3] bg-gray-50 overflow-hidden">
+                    {u ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={u}
+                        alt={rp.name}
+                        className="absolute inset-0 h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-[1.04]"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <div className="absolute inset-0 grid place-items-center text-sm text-gray-400">No Image</div>
+                    )}
                   </div>
-                  <div className="font-medium text-gray-900 leading-snug line-clamp-2 group-hover:text-sky-700 transition">
-                    {rp.name}
+                  <div className="p-3 flex-1 flex flex-col gap-2">
+                    <div className="text-[15px] font-semibold">
+                      <PriceInline price={rp.price} noAnchor />
+                    </div>
+                    <div className="font-medium text-gray-900 leading-snug line-clamp-2 group-hover:text-sky-700 transition">
+                      {rp.name}
+                    </div>
+                    {rp.short && <p className="text-sm text-gray-500 line-clamp-2 mt-auto">{rp.short}</p>}
                   </div>
-                  {rp.short && <p className="text-sm text-gray-500 line-clamp-2 mt-auto">{rp.short}</p>}
-                </div>
-              </Link>
-            ))}
+                </Link>
+              );
+            })}
           </div>
         </section>
       )}

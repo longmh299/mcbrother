@@ -54,54 +54,48 @@ async function getData(params: SearchParams) {
     categoryId = cat?.id;
   }
 
-  // where cơ bản (không dùng published để tránh lỗi nếu schema không có)
+  // where cơ bản
   const where: any = {};
   if (q) {
     where.OR = [
       { name: { contains: q, mode: "insensitive" } },
-      { short: { contains: q, mode: "insensitive" } }, // đổi sang shortDesc nếu schema của bạn khác tên
+      { short: { contains: q, mode: "insensitive" } }, // đổi tên field nếu schema khác
       { sku: { contains: q, mode: "insensitive" } },
       ...(qSlug ? [{ slug: { contains: qSlug, mode: "insensitive" } }] : []),
     ];
   }
   if (categoryId) where.categoryId = categoryId;
 
-  // Lấy tổng số
+  // Đếm & lấy items
   const count = await prisma.product.count({ where });
 
-  // Lấy danh sách sản phẩm (có fallback orderBy để tránh lỗi schema)
+  const select = {
+    id: true,
+    slug: true,
+    name: true,
+    short: true,
+    coverImage: true,
+    price: true,
+  } as const;
+
   let items = await prisma.product.findMany({
     where,
-    orderBy: [{ createdAt: "desc" as const }], // thử dùng createdAt trước
+    orderBy: [{ createdAt: "desc" as const }],
     skip: (page - 1) * PER_PAGE,
     take: PER_PAGE,
-    select: {
-      id: true,
-      slug: true,
-      name: true,
-      short: true,
-      coverImage: true,
-      price: true,
-    },
+    select,
   }).catch(async () => {
-    // fallback nếu schema không có createdAt
+    // fallback nếu không có createdAt
     return prisma.product.findMany({
       where,
       orderBy: [{ id: "desc" as const }],
       skip: (page - 1) * PER_PAGE,
       take: PER_PAGE,
-      select: {
-        id: true,
-        slug: true,
-        name: true,
-        short: true,
-        coverImage: true,
-        price: true,
-      },
+      select,
     });
   });
 
-  // Lấy categories (fallback nếu không có field "order")
+  // Categories (fallback nếu không có field "order")
   let categories = await prisma.category.findMany({
     orderBy: [{ order: "asc" as const }, { name: "asc" as const }],
     select: { id: true, name: true },
@@ -146,82 +140,114 @@ export default async function ProductsPage({
   const catParam = cat ? { cat } : { categoryId };
 
   return (
-    // Full-bleed nền dịu (xu hướng)
     <section className="w-full bg-surface">
-      {/* Nội dung gói trong container rộng (2xl=1600 trong tailwind.config.js) */}
       <div className="container px-4 lg:px-6 py-6 md:py-8">
+        {/* Title */}
         <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
           <h1 className="text-2xl md:text-3xl font-semibold tracking-tight">
             Sản phẩm
           </h1>
         </div>
 
-        {/* Thanh lọc */}
+        {/* SEARCH (mobile-only) */}
+        <form
+          action="/san-pham"
+          method="GET"
+          className="mb-3 sm:hidden"
+          aria-label="Tìm sản phẩm"
+        >
+          {/* Giữ category hiện tại nếu đang lọc theo category */}
+          {categoryId && <input type="hidden" name="categoryId" value={categoryId} />}
+          {cat && <input type="hidden" name="cat" value={cat} />}
+
+          <div className="relative">
+            <input
+              name="q"
+              defaultValue={q}
+              placeholder="Tìm tên / SKU / từ khóa"
+              className="w-full h-11 rounded-full bg-white border border-gray-200 px-4 pr-11 text-[15px]
+                         outline-none focus:border-[#2653ED] focus:ring-4 focus:ring-[#2653ED]/10"
+            />
+            <button
+              type="submit"
+              className="absolute right-1.5 top-1.5 h-8 w-8 rounded-full bg-[#2653ED] text-white
+                         inline-grid place-items-center hover:brightness-110"
+              aria-label="Tìm"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                <path d="M21 21l-4.3-4.3M10.5 18a7.5 7.5 0 1 1 0-15 7.5 7.5 0 0 1 0 15z"
+                  stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+              </svg>
+            </button>
+          </div>
+        </form>
+
+        {/* FILTER (GIỮ NGUYÊN CategoryPicker của bạn) */}
         <form
           action="/san-pham"
           className="mb-5 rounded-2xl border border-gray-100 bg-white p-3 md:p-4 shadow-card"
         >
           <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5">
-
             <div className="sm:col-span-12">
               <CategoryPicker categories={categories} />
             </div>
-
-            {/* <div className="sm:col-span-4">
-              <button
-                className="w-full rounded-xl bg-primary text-white font-medium py-2.5 hover:brightness-110 transition"
-                type="submit"
-              >
-                Lọc
-              </button>
-            </div> */}
           </div>
         </form>
 
-        {/* Grid 4 cột ở xl (8 sp / trang) */}
+        {/* GRID: UI thẻ sản phẩm (tên lớn hơn) */}
         {items.length === 0 ? (
           <div className="text-gray-500">Không có sản phẩm phù hợp.</div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 xl:gap-6">
+          <ul
+            className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 xl:gap-6 pb-20"
+            role="list"
+            aria-label="Danh sách sản phẩm"
+          >
             {items.map((p) => (
-              <Link
-                href={`/san-pham/${p.slug}`}
+              <li
                 key={p.id}
-                className="group block overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-card transition-transform duration-300 ease-soft-out hover:-translate-y-0.5 hover:shadow-card-hover"
+                className="group rounded-3xl border border-gray-200/70 bg-white
+                           shadow-[0_1px_0_#eef1f4] hover:shadow-[0_8px_24px_rgba(0,0,0,.08)]
+                           transition-all duration-300 overflow-hidden"
               >
-                <div className="aspect-[4/3] bg-gradient-to-b from-gray-50 to-white overflow-hidden">
-                  {p.coverImage ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={p.coverImage}
-                      alt={p.name}
-                      className="h-full w-full object-cover transition-transform duration-300 ease-soft-out group-hover:scale-[1.03]"
-                      loading="lazy"
-                    />
-                  ) : (
-                    <div className="flex h-full w-full items-center justify-center text-gray-400 text-sm">
-                      No Image
-                    </div>
-                  )}
-                </div>
-
-                <div className="p-3 md:p-4 space-y-1">
-                  <div className="text-[15px] font-semibold text-gray-900">
-                    {fmtVND(p.price)}
+                <Link href={`/san-pham/${p.slug}`} className="block" aria-label={`Xem chi tiết ${p.name}`}>
+                  <div className="aspect-[4/3] bg-gray-50 overflow-hidden">
+                    {p.coverImage ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={p.coverImage}
+                        alt={`${p.name} – MCBROTHER`}
+                        className="w-full h-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.03]"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center text-gray-400 text-sm">
+                        No Image
+                      </div>
+                    )}
                   </div>
-                  <h3 className="text-sm md:text-[15px] font-medium text-gray-800 leading-snug line-clamp-2 group-hover:text-primary transition-colors">
-                    {p.name}
-                  </h3>
-                  {p.short && (
-                    <p className="text-xs text-gray-500 line-clamp-2">{p.short}</p>
-                  )}
-                </div>
-              </Link>
+
+                  <div className="p-3.5">
+                    {/* Tên lớn hơn, 2 dòng */}
+                    <h3 className="text-[16px] md:text-[17px] font-semibold leading-snug line-clamp-2 group-hover:text-[#2653ED] transition-colors">
+                      {p.name}
+                    </h3>
+                    {/* Giá nổi bật, tăng nhẹ trên desktop */}
+                    <div className="mt-1.5 text-[15px] md:text-[16px] font-semibold text-[#2653ED]">
+                      {fmtVND(p.price)}
+                    </div>
+                    {/* Mô tả ẩn để thẻ đều; bật nếu cần */}
+                    {/* {p.short && (
+                      <p className="mt-1 text-xs text-gray-500 line-clamp-2">{p.short}</p>
+                    )} */}
+                  </div>
+                </Link>
+              </li>
             ))}
-          </div>
+          </ul>
         )}
 
-        {/* Pagination */}
+        {/* Pagination (giữ nguyên) */}
         {totalPages > 1 && (
           <nav
             aria-label="Pagination"
@@ -243,20 +269,20 @@ export default async function ProductsPage({
 
             <div className="hidden sm:flex items-center gap-1">
               {Array.from({ length: totalPages }).map((_, i) => {
-                const p = i + 1;
+                const pnum = i + 1;
                 const show =
-                  p === 1 ||
-                  p === totalPages ||
-                  Math.abs(p - page) <= 1 ||
-                  (page <= 3 && p <= 4) ||
-                  (page >= totalPages - 2 && p >= totalPages - 3);
+                  pnum === 1 ||
+                  pnum === totalPages ||
+                  Math.abs(pnum - page) <= 1 ||
+                  (page <= 3 && pnum <= 4) ||
+                  (page >= totalPages - 2 && pnum >= totalPages - 3);
 
                 if (show) {
-                  const active = p === page;
+                  const active = pnum === page;
                   return (
                     <Link
-                      key={p}
-                      href={buildHref("/san-pham", { q, ...catParam, page: p })}
+                      key={pnum}
+                      href={buildHref("/san-pham", { q, ...catParam, page: pnum })}
                       className={`min-w-[36px] text-center px-2.5 py-2 rounded-lg border text-sm ${
                         active
                           ? "bg-primary border-primary text-white"
@@ -264,15 +290,13 @@ export default async function ProductsPage({
                       }`}
                       aria-current={active ? "page" : undefined}
                     >
-                      {p}
+                      {pnum}
                     </Link>
                   );
                 }
-                if ((p === page - 2 && p > 1) || (p === page + 2 && p < totalPages)) {
+                if ((pnum === page - 2 && pnum > 1) || (pnum === page + 2 && pnum < totalPages)) {
                   return (
-                    <span key={p} className="px-2 text-gray-500">
-                      …
-                    </span>
+                    <span key={pnum} className="px-2 text-gray-500">…</span>
                   );
                 }
                 return null;

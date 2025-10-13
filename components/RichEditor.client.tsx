@@ -1,4 +1,119 @@
 // components/RichEditor.client.tsx
+// 'use client';
+
+// import * as React from 'react';
+// import dynamic from 'next/dynamic';
+// import type { IAllProps as TinyMCEProps } from '@tinymce/tinymce-react';
+
+/**
+ * ✅ Chỉ load Editor ở client, KHÔNG SSR.
+ * Dùng cast sang React.ComponentType<TinyMCEProps> để tránh xung đột kiểu giữa
+ * các dạng ComponentType mà @tinymce/tinymce-react export.
+ */
+// const TinyMCEEditor = dynamic<TinyMCEProps>(
+//   () =>
+//     import('@tinymce/tinymce-react').then(
+//       (m) => m.Editor as unknown as React.ComponentType<TinyMCEProps>
+//     ),
+//   {
+//     ssr: false,
+//     loading: () => (
+//       <div className="min-h-[180px] rounded-lg border p-3 text-sm text-gray-500">
+//         Đang tải trình soạn thảo…
+//       </div>
+//     ),
+//   }
+// );
+
+// type Props = {
+//   apiKey: string;
+//   name?: string;
+//   value?: string;
+//   onChange?: (html: string) => void;
+//   height?: number;
+//   placeholder?: string;
+//   className?: string;
+//   id?: string; // để id ổn định (optional)
+// };
+
+// export default function RichEditorClient({
+//   apiKey,
+//   name,
+//   value = '',
+//   onChange,
+//   height = 360,
+//   placeholder,
+//   className,
+//   id,
+// }: Props) {
+//   const [content, setContent] = React.useState(value);
+//   const [mounted, setMounted] = React.useState(false);
+
+//   React.useEffect(() => setMounted(true), []);
+//   React.useEffect(() => {
+//     setContent(value ?? '');
+//   }, [value]);
+
+  // render skeleton trong SSR/lần đầu để tránh mismatch
+//   if (!mounted) {
+//     return (
+//       <div className={className}>
+//         {name ? <input type="hidden" name={name} value={content} /> : null}
+//         <div className="min-h-[180px] rounded-lg border p-3 text-sm text-gray-500">
+//           Đang tải trình soạn thảo…
+//         </div>
+//       </div>
+//     );
+//   }
+
+//   return (
+//     <div className={className}>
+//       {name ? <input type="hidden" name={name} value={content} /> : null}
+
+//       <TinyMCEEditor
+//         id={id || name || 'mcbe-editor'} // id ổn định để tránh lệch
+//         apiKey={apiKey}
+//         value={content}
+//         init={{
+//           height,
+//           menubar: false,
+//           plugins: [
+//             'advlist',
+//             'autolink',
+//             'lists',
+//             'link',
+//             'image',
+//             'charmap',
+//             'preview',
+//             'anchor',
+//             'searchreplace',
+//             'visualblocks',
+//             'code',
+//             'fullscreen',
+//             'insertdatetime',
+//             'media',
+//             'table',
+//             'help',
+//             'wordcount',
+//           ],
+//           toolbar:
+//             'undo redo | blocks | bold italic underline | alignleft aligncenter alignright | bullist numlist outdent indent | link image media table | removeformat | code',
+//           branding: false,
+//           placeholder,
+//           content_style:
+//             'body { font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial; font-size:14px }',
+//           entity_encoding: 'raw',
+//           valid_elements: '*[*]',
+//         }}
+//         onEditorChange={(html) => {
+//           setContent(html);
+//           onChange?.(html);
+//         }}
+//       />
+//     </div>
+//   );
+// }
+// components/RichEditor.client.tsx
 'use client';
 
 import * as React from 'react';
@@ -6,9 +121,7 @@ import dynamic from 'next/dynamic';
 import type { IAllProps as TinyMCEProps } from '@tinymce/tinymce-react';
 
 /**
- * ✅ Chỉ load Editor ở client, KHÔNG SSR.
- * Dùng cast sang React.ComponentType<TinyMCEProps> để tránh xung đột kiểu giữa
- * các dạng ComponentType mà @tinymce/tinymce-react export.
+ * Chỉ load Editor ở client (no-SSR).
  */
 const TinyMCEEditor = dynamic<TinyMCEProps>(
   () =>
@@ -42,7 +155,7 @@ export default function RichEditorClient({
   value = '',
   onChange,
   height = 360,
-  placeholder,
+  placeholder = 'Nhập nội dung chi tiết…',
   className,
   id,
 }: Props) {
@@ -68,10 +181,11 @@ export default function RichEditorClient({
 
   return (
     <div className={className}>
+      {/* Hidden input để <form action=...> nhận dữ liệu khi submit */}
       {name ? <input type="hidden" name={name} value={content} /> : null}
 
       <TinyMCEEditor
-        id={id || name || 'mcbe-editor'} // id ổn định để tránh lệch
+        id={id || name || 'mcbe-editor'}
         apiKey={apiKey}
         value={content}
         init={{
@@ -97,7 +211,9 @@ export default function RichEditorClient({
             'wordcount',
           ],
           toolbar:
-            'undo redo | blocks | bold italic underline | alignleft aligncenter alignright | bullist numlist outdent indent | link image media table | removeformat | code',
+            'undo redo | blocks | bold italic underline | ' +
+            'alignleft aligncenter alignright | bullist numlist outdent indent | ' +
+            'link image media table | removeformat | code',
           branding: false,
           placeholder,
           content_style:

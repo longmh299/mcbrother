@@ -1,45 +1,58 @@
 // app/admin/login/page.tsx
-'use client';
+"use client";
 
-import { Suspense } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
-import Link from 'next/link';
+import { Suspense, useActionState } from "react"; // ⬅️ dùng useActionState
+import { useSearchParams } from "next/navigation";
+import { useFormStatus } from "react-dom";
+import Link from "next/link";
+import { loginAction } from "./actions";
+
+function SubmitBtn() {
+  const { pending } = useFormStatus();
+  return (
+    <button
+      disabled={pending}
+      className="w-full rounded-lg bg-black px-4 py-2 text-white hover:bg-gray-800 disabled:opacity-60"
+    >
+      {pending ? "Đang đăng nhập…" : "Đăng nhập"}
+    </button>
+  );
+}
 
 function LoginInner() {
   const params = useSearchParams();
-  const router = useRouter();
-  const next = params.get('next') || '/admin';
+  const next = params.get("next") || "/admin";
 
-  async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    // TODO: gọi server action / API login của bạn ở đây
-    // await login(new FormData(e.currentTarget));
-    router.push(next);
-  }
+  // ⬇️ useActionState thay cho useFormState
+  const [state, formAction] = useActionState(loginAction, null);
 
   return (
     <div className="mx-auto max-w-sm rounded-xl border bg-white p-6 shadow-sm">
       <h1 className="mb-4 text-xl font-semibold">Đăng nhập</h1>
 
-      <form onSubmit={onSubmit} className="space-y-3">
+      {state?.error && (
+        <div className="mb-3 rounded-md border border-red-200 bg-red-50 p-2 text-sm text-red-700">
+          {state.error}
+        </div>
+      )}
+
+      <form action={formAction} className="space-y-3">
         <input
-          name="email"
-          type="email"
-          placeholder="Email"
+          name="user"
+          type="text"
+          placeholder="Tài khoản"
           className="w-full rounded-lg border px-3 py-2"
-          required
+          
         />
         <input
-          name="password"
+          name="pass"
           type="password"
           placeholder="Mật khẩu"
           className="w-full rounded-lg border px-3 py-2"
           required
         />
-        <button className="w-full rounded-lg bg-black px-4 py-2 text-white hover:bg-gray-800">
-          Đăng nhập
-        </button>
         <input type="hidden" name="next" value={next} />
+        <SubmitBtn />
       </form>
 
       <div className="mt-3 text-xs text-gray-500">

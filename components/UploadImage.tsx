@@ -1,99 +1,78 @@
-// // components/UploadImage.tsx
-// "use client";
-
-// import { useId, useState } from "react";
-
-// type Props = {
-//   name: string;            // tên input thực sự gửi về form cha
-//   label?: string;          // nhãn hiển thị
-//   defaultValue?: string;   // url mặc định
-// };
-
-// export default function UploadImage({ name, label = "Ảnh", defaultValue = "" }: Props) {
-//   const [value, setValue] = useState(defaultValue || "");
-//   const [busy, setBusy] = useState(false);
-//   const id = useId();
-
-//   async function onFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-//     const file = e.target.files?.[0];
-//     if (!file) return;
-//     setBusy(true);
-//     try {
-//       const fd = new FormData();
-//       fd.append("file", file);
-
-//       const res = await fetch("/api/upload", { method: "POST", body: fd });
-//       if (!res.ok) throw new Error("Upload failed");
-//       const json = await res.json();
-//       if (json?.url) setValue(json.url);
-//     } catch (err) {
-//       console.error(err);
-//       alert("Tải ảnh thất bại");
-//     } finally {
-//       setBusy(false);
-//       e.target.value = "";
-//     }
-//   }
-
-//   return (
-//     <div className="space-y-2">
-//       <label htmlFor={id} className="font-medium">{label}</label>
-
-//       {/* input ẩn: giá trị thật gửi về form CHA */}
-//       <input type="hidden" name={name} value={value} />
-
-//       <div className="flex items-center gap-3">
-//         <input
-//           id={id}
-//           type="text"
-//           className="border rounded px-3 py-2 flex-1"
-//           placeholder="Dán URL ảnh…"
-//           value={value}
-//           onChange={(e) => setValue(e.target.value)}
-//         />
-//         <input type="file" accept="image/*" onChange={onFileChange} disabled={busy} />
-//       </div>
-
-//       {busy && <p className="text-sm text-slate-500">Đang tải…</p>}
-//       {!!value && <img src={value} alt="" className="h-24 rounded border" />}
-//     </div>
-//   );
-// }
-// components/UploadImage.tsx
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
+
+type Props = {
+  name: string;
+  onUploaded?: (url: string) => void;
+  accept?: string;       // mặc định image/*
+  maxSizeMB?: number;    // mặc định 10MB
+  folder?: string;       // nếu muốn đẩy vào folder riêng (server sẽ ưu tiên CLOUDINARY_FOLDER)
+  className?: string;
+  buttonLabel?: string;
+};
 
 export default function UploadImage({
   name,
   onUploaded,
-}: {
-  name: string; // tên input hidden (nếu cần)
-  onUploaded?: (url: string) => void;
-}) {
+  accept = 'image/*',
+  maxSizeMB = 10,
+  folder,
+  className = '',
+  buttonLabel = 'Tải ảnh từ máy',
+}: Props) {
   const [loading, setLoading] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
 
-  async function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setLoading(true);
+  async function handleFile(file: File) {
+    if (!file.type.startsWith('image/')) {
+      alert('Chỉ hỗ trợ ảnh');
+      return;
+    }
+    if (file.size > maxSizeMB * 1024 * 1024) {
+      alert(`Ảnh quá lớn (> ${maxSizeMB}MB)`);
+      return;
+    }
+
     const fd = new FormData();
     fd.append('file', file);
-    const res = await fetch('/api/upload', { method: 'POST', body: fd });
-    const json = await res.json();
-    setLoading(false);
-    if (json.ok) {
-      onUploaded?.(json.url);
-    } else {
-      alert(json.error || 'Upload failed');
+    if (folder) fd.append('folder', folder);
+
+    setLoading(true);
+    try {
+      const res = await fetch('/api/upload', { method: 'POST', body: fd });
+      const json = await res.json().catch(() => null);
+      if (json?.ok && json.url) {
+        onUploaded?.(json.url);
+      } else {
+        alert(json?.error || 'Upload thất bại');
+      }
+    } finally {
+      setLoading(false);
+      if (fileRef.current) fileRef.current.value = '';
     }
   }
 
   return (
-    <div className="space-y-2">
-      <input type="file" accept="image/*" onChange={handleChange} />
-      {loading && <p className="text-sm text-gray-500">Đang tải ảnh…</p>}
-      {/* Có thể render <input type="hidden" name={name} value={url} /> ở nơi gọi */}
+    <div className={`space-y-2 ${className}`}>
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          className="border rounded px-3 py-2 text-sm"
+          onClick={() => fileRef.current?.click()}
+          disabled={loading}
+        >
+          {loading ? 'Đang tải…' : buttonLabel}
+        </button>
+        <input
+          ref={fileRef}
+          type="file"
+          accept={accept}
+          className="hidden"
+          onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
+        />
+      </div>
+      {/* nếu muốn submit kèm form có thể render <input type="hidden" name={name} /> ở component cha */}
     </div>
   );
 }

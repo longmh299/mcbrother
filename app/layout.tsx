@@ -10,7 +10,7 @@ import MessengerBtn from "@/components/MessengerBtn";
 import HeaderShell from "@/components/HeaderShell";
 
 export const metadata: Metadata = {
-  title: "MCBROTHER JSC",
+  title: "MCBROTHER",
   description:
     "MCBROTHER JSC – Giải pháp máy móc chế biến & đóng gói thực phẩm.",
 };
@@ -23,7 +23,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
         {children}       
         <Footer />
-        <CTA />
+        <CTA side="right" zalo="0834551888" defaultOpen={true}/>
         {/* <MessengerBtn /> */}
       </body>
     </html>
